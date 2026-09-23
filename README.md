@@ -13,8 +13,12 @@ and skills it carries, and it returns:
   the TI it would add, the TI per 100 credits spent on it, its break-even cost,
   and whether the fighter can actually buy it at this stage of the campaign.
 
-Open `index.html` in a browser. There is no build step, no server, no network
-request and nothing written to storage. It recomputes on every change.
+**Use it here: <https://seewhy3160.github.io/necromunda-n26-tankiness-simulator/>**
+
+Or open `index.html` in a browser. There is no build step, no server, no network
+request and nothing written to storage. It recomputes on every change. The
+site is published by `.github/workflows/pages.yml` on every push to the default
+branch, once the fast test suite passes.
 
 This is a standalone sibling of the
 [N26 Attack Simulator](https://github.com/Seewhy3160/necromunda-n26-attack-simulator)
