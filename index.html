@@ -692,7 +692,12 @@ const Tankiness = (function (Engine, Data) {
   /* ---- Items -------------------------------------------------------------
      Costs are Trading Post (p158-159) unless the item is a gang-list
      exclusive. `effects` are folded into the target before any hit is
-     resolved; boolean effects switch on a hook in the hit resolver. */
+     resolved; boolean effects switch on a hook in the hit resolver.
+
+     A fighter may not wear more than one item of armour or field armour
+     (p158). Everything in the p158 armour table shares the 'armour' group
+     for that reason; the refractor field is the one item printed as
+     combinable with other armour, so it stands alone. */
   const WARGEAR = [
     { id: 'lightCarapace', name: 'Light carapace', cost: 100, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
       tradingPost: true, effects: { sv: 1, I: -1 }, text: '+1 Sv, -1 Initiative' },
@@ -700,36 +705,38 @@ const Tankiness = (function (Engine, Data) {
       tradingPost: true, effects: { sv: 2, I: -2 }, text: '+2 Sv, -2 Initiative' },
     { id: 'meshArmour', name: 'Mesh armour', cost: 40, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
       tradingPost: true, effects: { meleeSave: 1 }, text: '+1 Sv in close combat only' },
+    { id: 'reflecShroud', name: 'Reflec shroud', cost: 25, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
+      tradingPost: true, effects: { reflec: true }, text: 'Las, plasma and melta AP counts as -; counts as armour (p158)' },
+    { id: 'hazardSuit', name: 'Hazard suit', cost: 10, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
+      tradingPost: true, effects: { hazardSuit: true }, text: 'Immune to Blaze; counts as armour (p158)' },
     { id: 'refractor', name: 'Refractor field', cost: 50, kind: 'wargear', group: 'field',
-      tradingPost: true, effects: { refractor: true }, text: '5+ invulnerable save; burns out on a natural 1' },
-    { id: 'reflecShroud', name: 'Reflec shroud', cost: 25, kind: 'wargear', group: 'field',
-      tradingPost: true, effects: { reflec: true }, text: 'Las, plasma and melta AP counts as -' },
+      tradingPost: true, effects: { refractor: true }, text: '5+ invulnerable save; burns out on a natural 1; combines with armour' },
     { id: 'refractionCloak', name: 'Refraction cloak', cost: 40, kind: 'wargear', group: 'field',
       tradingPost: false, exclusive: 'vanSaar', effects: { evasionRanged: 0.75 },
       text: '-1 to hit by ranged attacks; rated as evasion, not TI' },
-    { id: 'hazardSuit', name: 'Hazard suit', cost: 10, kind: 'wargear', group: 'other',
-      tradingPost: true, effects: { hazardSuit: true }, text: 'Immune to Blaze' },
     { id: 'respirator', name: 'Respirator', cost: 15, kind: 'wargear', group: 'other',
       tradingPost: true, effects: { respirator: true }, text: '5+ invulnerable save against Gas' },
     { id: 'bioBooster', name: 'Bio-booster', cost: 25, kind: 'wargear', group: 'other',
       tradingPost: true, effects: { bioBooster: true },
       text: 'First time reduced to 0 Wounds: Lethality -1; at 0, two Injury dice and the bearer picks' },
     { id: 'servoHarnessPartial', name: 'Servo-harness (partial)', cost: 100, kind: 'wargear', group: 'other', exclusiveGroup: 'harness',
-      tradingPost: true, effects: { S: 2, T: 1 }, text: '+2 S, +1 T' },
+      tradingPost: true, effects: { S: 2, T: 1, I: -1 }, text: '+2 S, +1 T, -1 M, -1 I' },
     { id: 'servoHarnessFull', name: 'Servo-harness (full)', cost: 130, kind: 'wargear', group: 'other', exclusiveGroup: 'harness',
       tradingPost: true, effects: { S: 2, T: 1 }, text: '+2 S, +1 T' },
     { id: 'hystrarShield', name: "'Hystrar' pattern energy shield", cost: 35, kind: 'wargear', group: 'weapon',
-      tradingPost: false, exclusive: 'vanSaar', slot: 'weapon', effects: { rangedSave: 1, meleeSave: 1 },
+      tradingPost: false, exclusive: 'vanSaar', slot: 'weapon', effects: { shield: true, parry: true },
       text: 'Shield (+1 Sv vs shooting) and Parry (+1 Sv in combat); takes a weapon slot' },
     { id: 'parryWeapon', name: 'Parry weapon carried', cost: 0, kind: 'wargear', group: 'weapon', weapon: true,
-      effects: { meleeSave: 1 }, text: '+1 Sv in close combat; the weapon’s cost goes under weapons' },
+      effects: { parry: true }, text: '+1 Sv in close combat (several Parry weapons do not stack); the weapon’s cost goes under weapons' },
     { id: 'shieldWeapon', name: 'Shield weapon carried', cost: 0, kind: 'wargear', group: 'weapon', weapon: true,
-      effects: { rangedSave: 1 }, text: '+1 Sv vs shooting; the weapon’s cost goes under weapons' }
+      effects: { shield: true }, text: '+1 Sv vs shooting (several Shield weapons do not stack); the weapon’s cost goes under weapons' }
   ];
 
+  /* Skills (p151). An Injured fighter (0 Wounds) gains no benefit from any
+     skill (p48), so both switch off once the wounds are gone. */
   const SKILLS = [
     { id: 'dodge', name: 'Dodge', cost: 0, kind: 'skill', set: 'Agility', effects: { dodge: true },
-      text: 'A wound is cancelled on a 6, rolled before the save' },
+      text: 'A wound from shooting or close combat is cancelled on a 6, before the save; not against Template or Blast weapons' },
     { id: 'ironJaw', name: 'Iron Jaw', cost: 0, kind: 'skill', set: 'Brawn', effects: { ironJaw: true },
       text: '+2 Toughness against close combat hits with AP -' }
   ];
@@ -897,7 +904,7 @@ const Tankiness = (function (Engine, Data) {
     const t = {
       T: profile.T, W: profile.W, sv: profile.sv || 0, inv: profile.inv || 0,
       S: profile.S || 3, I: profile.I || 4,
-      meleeSave: 0, rangedSave: 0, evasionRanged: 1,
+      meleeSave: 0, rangedSave: 0, parry: false, shield: false, evasionRanged: 1,
       refractor: false, reflec: false, hazardSuit: false, respirator: false, bioBooster: false,
       dodge: false, ironJaw: false, scarTissue: false, adaptiveBiology: false
     };
@@ -938,7 +945,10 @@ const Tankiness = (function (Engine, Data) {
     const melee = !!prof.melee;
     let ap = prof.ap;
     if (t.reflec && !melee && REFLEC_FAMILIES.indexOf(prof.family) >= 0) ap = 0;
-    const mods = ap + rendingMod + (melee ? t.meleeSave : t.rangedSave + opts.cover);
+    // Parry and Shield each give +1 once, however many such weapons are carried (p164).
+    const mods = ap + rendingMod + (melee
+      ? t.meleeSave + (t.parry ? 1 : 0)
+      : t.rangedSave + (t.shield ? 1 : 0) + opts.cover);
     const armour = allowArmour ? Engine.saveProb(t.sv, mods, 0, true) : 0;
     let inv = t.inv;
     if (prof.gas && t.respirator) inv = inv ? Math.min(inv, 5) : 5;   // p163
@@ -976,9 +986,14 @@ const Tankiness = (function (Engine, Data) {
     injure(s, L, t, burnt, out, p);
   }
 
-  /* A wound that got through the wound roll: Dodge, then the save. */
+  /* Skills do nothing for an Injured fighter (p48), so they only count while
+     the fighter still has Wounds. */
+  const skillsWork = (s) => s.cond === COND.NONE;
+
+  /* A wound that got through the wound roll: Dodge, then the save. Dodge
+     (p151) never cancels a Blast marker or a template. */
   function afterWoundRoll(id, s, prof, t, opts, L, rendingMod, allowArmour, out, p) {
-    if (t.dodge) { addTo(out, id, p / 6); p *= 5 / 6; }
+    if (t.dodge && skillsWork(s) && !prof.template && !prof.blast) { addTo(out, id, p / 6); p *= 5 / 6; }
     for (const o of saveOutcomes(prof, t, s, opts, rendingMod, allowArmour)) {
       const burnt = s.burnt || !!o.burnt;
       if (o.saved) addTo(out, enc(s.w, s.cond, burnt, s.bio), p * o.p);
@@ -986,11 +1001,11 @@ const Tankiness = (function (Engine, Data) {
     }
   }
 
-  function woundTargetFor(prof, t) {
+  function woundTargetFor(prof, t, s) {
     if (prof.toxin > 0) return prof.toxin;                       // Toxin ignores Toughness (p165)
     if (prof.str === null || prof.str === undefined) return 7;   // nothing to wound with
     let T = t.T;
-    if (t.ironJaw && prof.melee && prof.ap === 0) T += 2;
+    if (t.ironJaw && skillsWork(s) && prof.melee && prof.ap === 0) T += 2;   // p151
     return Engine.woundTarget(prof.str, T);
   }
 
@@ -1007,7 +1022,7 @@ const Tankiness = (function (Engine, Data) {
       return out;
     }
 
-    const need = woundTargetFor(prof, t);
+    const need = woundTargetFor(prof, t, s);
     const branches = [];   // { p, face } for the wound roll that counts
     for (let f = 1; f <= 6; f++) {
       if (f < need) { branches.push({ p: 1 / 6, face: f, wounds: false }); continue; }
@@ -1175,7 +1190,7 @@ const Tankiness = (function (Engine, Data) {
     for (const g of ['armour', 'harness']) {
       const n = selected.filter(x => x.exclusiveGroup === g).length;
       if (n > 1) problems.push(g === 'armour'
-        ? 'More than one suit of armour is selected; a fighter wears one. The save bonuses are stacked here.'
+        ? 'More than one item of armour is selected; a fighter may wear only one (p158), and only the refractor field combines with it. The effects are stacked here.'
         : 'Both servo-harness sizes are selected; a fighter wears one. The bonuses are stacked here.');
     }
     if (opts.gangDef && !opts.gangDef.geneSmithing && selected.some(x => x.kind === 'gene')) {
@@ -1240,6 +1255,8 @@ const Tankiness = (function (Engine, Data) {
         main.target.evasionRanged.toFixed(2) + ' of ranged, non-Template hits kept at a reference BS 3+) rather than in TI.');
     }
     if (main.target.respirator) notes.push('Respirator: no weapon in the pool has Gas, so it adds nothing to TI here.');
+    if (main.target.dodge || main.target.ironJaw) notes.push('Skills stop working once the fighter is Injured (p48), so Dodge and Iron Jaw only count while Wounds remain.' +
+      (main.target.dodge ? ' Dodge never cancels a Template or Blast hit (p151), so the hand flamer ignores it.' : ''));
     if (selected.some(x => x.id === 'hystrarShield')) notes.push('‘Hystrar’ shield: takes a weapon slot, and the fighter is assumed to use it in combat for the Parry bonus.');
     if (selected.filter(x => x.kind === 'gene').length > 1) notes.push('Only one gene-smithing option is normally allowed (the Forge Master may take two).');
     if (opts.equipmentList && !EQUIPMENT_LISTS[opts.equipmentList]) problems.push('Unknown Equipment List "' + opts.equipmentList + '"; availability is unknown.');
@@ -1415,8 +1432,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       numberField('Weapons', 'c.weapons', 0, 'Everything the fighter shoots or swings with.'),
       numberField('Other wargear', 'c.other', 0, 'Non-defensive kit; defensive items are added from the chips.')));
     root.appendChild(group('Defensive wargear',
-      chipRow('Armour (one suit)', byGroup('armour')),
-      chipRow('Fields and cloaks', byGroup('field')),
+      chipRow('Armour (one item, p158)', byGroup('armour')),
+      chipRow('Field armour and cloaks (the refractor field combines with armour)', byGroup('field')),
       chipRow('Other', byGroup('other')),
       chipRow('Weapons carried', byGroup('weapon'))));
     root.appendChild(group('Skills', chipRow(null, Tankiness.SKILLS)));

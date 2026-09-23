@@ -40,18 +40,20 @@ takes the fighter out of the fight. *Out of Action only* is an option.
 | T, W, Sv, invulnerable save, S, I | Wound roll, wounds to chew through, save |
 | Base cost, weapons cost, other wargear cost | Denominator of TP100 |
 | Light carapace (100) / heavy carapace (140) | +1 / +2 Sv, −1 / −2 I |
+| *One item of armour* (p158) | Carapace, mesh, reflec shroud and hazard suit share one slot; only the refractor field combines with them. The gear table swaps armour in and out accordingly |
 | Mesh armour (40) | +1 Sv in close combat only |
 | Refractor field (50) | 5+ invulnerable, rolled only when it beats the armour; burns out on a natural 1 for the rest of the chain |
 | Reflec shroud (25) | AP of las, plasma and melta counts as − |
 | Hazard suit (10) | No Blaze extra hit |
 | Respirator (15) | 5+ invulnerable vs Gas (nothing in the v1 pool has Gas) |
 | Bio-booster (25) | First time reduced to 0 Wounds: Lethality −1; at 0, two Injury dice and the bearer picks |
-| Servo-harness partial (100) / full (130) | +2 S, +1 T |
+| Servo-harness partial (100) / full (130) | +2 S, +1 T (partial: −1 M, −1 I) |
 | 'Hystrar' energy shield (35, Van Saar) | +1 Sv vs shooting and +1 Sv in combat; takes a weapon slot |
 | Refraction cloak (40, Van Saar) | −1 to hit by shooting. It changes the hit roll, so it is reported as an **evasion factor** (0.75 of ranged hits kept at a reference BS 3+), not in TI |
-| Parry weapon / shield weapon carried | +1 Sv in combat / vs shooting; the weapon's own cost goes under weapons |
-| Dodge (skill) | A wound is cancelled on a 6, rolled before the save |
+| Parry weapon / shield weapon carried | +1 Sv in combat / vs shooting, once however many are carried (p164); the weapon's own cost goes under weapons |
+| Dodge (skill) | A wound from shooting or close combat is cancelled on a 6, rolled before the save; never against a Template or Blast (p151) |
 | Iron Jaw (skill) | +2 T against close combat hits with AP − |
+| *Injured fighters have no skills* (p48) | Dodge and Iron Jaw only count while the fighter still has Wounds |
 | Iron Flesh (+30, Goliath) | +1 W |
 | Scar Tissue (+15, Goliath) | Lethality of every hit −1, minimum 1 |
 | Adaptive Biology (+15, Goliath) | Toxin wounds must re-roll the wound dice |

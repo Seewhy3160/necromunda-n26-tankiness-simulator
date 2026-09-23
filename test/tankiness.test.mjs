@@ -130,6 +130,24 @@ test('mesh armour and a parry weapon help in melee only; a shield only against s
   near(hits(GANGER, 'chainsword', ['hystrarShield']), hits({ T: 3, W: 1, sv: 5 }, 'chainsword'));
 });
 
+test('several Parry or Shield weapons give no further benefit (p164), but mesh armour stacks with Parry', () => {
+  near(hits(GANGER, 'chainsword', ['hystrarShield', 'parryWeapon']), hits(GANGER, 'chainsword', ['hystrarShield']));
+  near(hits(GANGER, 'lasStub', ['hystrarShield', 'shieldWeapon']), hits(GANGER, 'lasStub', ['hystrarShield']));
+  near(hits(GANGER, 'chainsword', ['meshArmour', 'parryWeapon']), hits({ T: 3, W: 1, sv: 4 }, 'chainsword'));
+});
+
+test('only one item of armour: the reflec shroud and hazard suit swap in for a carapace suit (p158)', () => {
+  const heavy = rate(CHAMPION, { wargear: ['heavyCarapace'] }, { mode: 'campaign' });
+  const g = heavy.gear.find(x => x.id === 'reflecShroud');
+  near(g.tiWith, rate(CHAMPION, { wargear: ['reflecShroud'] }).ti);
+  near(g.tiWithout, heavy.ti);
+  assert.ok(g.dTi < 0, 'swapping heavy carapace for a reflec shroud loses TI');
+  assert.ok(rate(CHAMPION, { wargear: ['heavyCarapace', 'hazardSuit'] }).problems.some(p => /one item of armour/.test(p)));
+  // The refractor field combines with armour, so it raises no flag.
+  assert.equal(rate(CHAMPION, { wargear: ['heavyCarapace', 'refractor'] }).problems.length, 0);
+  assert.equal(tgt(CHAMPION, ['servoHarnessPartial']).I, 3);
+});
+
 test('the servo-harness folds into Strength and Toughness', () => {
   const t = tgt(CHAMPION, ['servoHarnessPartial']);
   assert.equal(t.T, 4); assert.equal(t.S, 5);
@@ -137,12 +155,28 @@ test('the servo-harness folds into Strength and Toughness', () => {
   near(hits(CHAMPION, 'stiletto', ['servoHarnessPartial']), hits(CHAMPION, 'stiletto'));   // Toxin ignores T
 });
 
-test('Dodge cancels a wound on a 6 before the save', () => {
-  // Melta: no save, so every wound goes to Dodge. 1 / (5/6 x 5/6 x 26/27)
-  near(hits(GANGER, 'meltagun', [], {}), 1 / ((5 / 6) * (26 / 27)));
-  const t = tgt(GANGER, []); t.dodge = true;
-  near(T.hitsToDown(prof('meltagun'), t, opts()).hits, 1 / ((5 / 6) * (5 / 6) * (26 / 27)));
-  near(rate(GANGER, { skills: ['dodge'] }).perProfile.find(p => p.id === 'meltagun').hits, 1 / ((5 / 6) * (5 / 6) * (26 / 27)));
+test('Dodge cancels a wound on a 6 before the save, only while the fighter has Wounds', () => {
+  // Melta on a Ganger: no save, so every wound goes to Dodge while fresh. Once
+  // Injured (0 Wounds) skills do nothing (p48), so from there no Dodge.
+  const pW = 5 / 6, down = 26 / 27, inj = 1 / 27;
+  const E_inj = 1 / (pW * down);
+  const stay = 1 / 6 + pW / 6, toInj = pW * (5 / 6) * inj;
+  const E_fresh = (1 + toInj * E_inj) / (1 - stay);
+  near(hits(GANGER, 'meltagun', ['dodge']), E_fresh);
+  near(rate(GANGER, { skills: ['dodge'] }).perProfile.find(p => p.id === 'meltagun').hits, E_fresh);
+  // On a fresh fighter the first-hit chance of going Down is cut by exactly 1/6.
+  const plain = T.hitsToDown(prof('plasma'), tgt(CHAMPION), opts()), dodged = T.hitsToDown(prof('plasma'), tgt(CHAMPION, ['dodge']), opts());
+  near(dodged.pDownFirst, plain.pDownFirst * 5 / 6);
+  // An Injured fighter gets no Dodge.
+  const t = tgt(GANGER, ['dodge']);
+  const injured = T.enc(0, Engine.COND.INJURED, false, false);
+  const a = T.resolveHit(injured, prof('meltagun'), t, opts(), true), b = T.resolveHit(injured, prof('meltagun'), tgt(GANGER), opts(), true);
+  for (const [k, v] of a) near(v, b.get(k));
+});
+
+test('Dodge never cancels a Template hit (p151), so the hand flamer ignores it', () => {
+  near(hits(CHAMPION, 'handFlamer', ['dodge']), hits(CHAMPION, 'handFlamer'));
+  assert.ok(hits(CHAMPION, 'lasStub', ['dodge']) > hits(CHAMPION, 'lasStub'));
 });
 
 test('Iron Jaw adds 2 Toughness against close combat hits with AP - only', () => {
@@ -152,8 +186,14 @@ test('Iron Jaw adds 2 Toughness against close combat hits with AP - only', () =>
   // Lethality 1 chain hits scale by the inverse. (The chainsword's Shred keys
   // off the same wound roll, so its ratio is not this clean.)
   const handWeapon = Object.assign({}, prof('chainsword'), { shred: 0 });
-  const t = tgt(GANGER), tj = tgt(GANGER); tj.ironJaw = true;
-  near(T.hitsToDown(handWeapon, tj, opts()).hits / T.hitsToDown(handWeapon, t, opts()).hits, (3 / 6) / (2 / 6));
+  const t = tgt(GANGER), tj = tgt(GANGER, ['ironJaw']);
+  near(T.hitsToDown(handWeapon, tj, opts()).pDownFirst / T.hitsToDown(handWeapon, t, opts()).pDownFirst, (2 / 6) / (3 / 6));
+  // On a W2 fighter the first hit is at T5 but, once Injured, skills are off (p48).
+  const w2 = tgt({ T: 3, W: 2, sv: 0 }, ['ironJaw']);
+  const fresh = T.resolveHit(T.enc(2, Engine.COND.NONE, false, false), handWeapon, w2, opts(), true);
+  near(fresh.get(T.enc(1, Engine.COND.NONE, false, false)), 2 / 6);
+  const injured = T.resolveHit(T.enc(0, Engine.COND.INJURED, false, false), handWeapon, w2, opts(), true);
+  near(injured.get(T.enc(0, Engine.COND.INJURED, false, false)), 3 / 6 + (3 / 6) * (2 / 6));   // wound on 4+ again
   assert.ok(h(jaw, 'chainsword') > h(plain, 'chainsword'));
   near(h(jaw, 'powerSword'), h(plain, 'powerSword'));   // AP -2
   near(h(jaw, 'cleaver'), h(plain, 'cleaver'));         // AP -1
@@ -289,7 +329,7 @@ test('an armour item swaps in for the suit already worn rather than stacking', (
   const g = light.gear.find(x => x.id === 'heavyCarapace');
   near(g.tiWith, heavyOnly);
   near(g.tiWithout, light.ti);
-  assert.ok(rate(CHAMPION, { wargear: ['lightCarapace', 'heavyCarapace'] }).problems.some(p => /one suit/.test(p)));
+  assert.ok(rate(CHAMPION, { wargear: ['lightCarapace', 'heavyCarapace'] }).problems.some(p => /one item of armour/.test(p)));
 });
 
 test('the break-even cost is where the item stops lowering TI per credit', () => {

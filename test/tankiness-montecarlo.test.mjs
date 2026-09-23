@@ -36,20 +36,24 @@ function simulate(prof, t, opts, trials, seed) {
 
   function oneHit(allowBlaze) {
     if (cond === 3) return;
+    const skills = cond === 0;   // an Injured fighter gains no benefit from skills (p48)
     let Tn = t.T;
-    if (t.ironJaw && prof.melee && prof.ap === 0) Tn += 2;
+    if (t.ironJaw && skills && prof.melee && prof.ap === 0) Tn += 2;
     const need = prof.toxin ? prof.toxin : woundTarget(prof.str, Tn);
     let face = d6();
     let wounds = face >= need;
     if (wounds && prof.toxin && t.adaptiveBiology) { face = d6(); wounds = face >= need; }
     const blaze = prof.blaze && face >= prof.blaze && !t.hazardSuit;
-    if (wounds && !(t.dodge && d6() === 6)) {
+    const canDodge = t.dodge && skills && !prof.template && !prof.blast;   // p151
+    if (wounds && !(canDodge && d6() === 6)) {
       const rending = prof.rending && face >= prof.rending;
       const shred = prof.shred && face >= prof.shred;
       const breaching = prof.breaching && face >= prof.breaching;
       let ap = prof.ap;
       if (t.reflec && !prof.melee && ['las', 'plasma', 'melta'].includes(prof.family)) ap = 0;
-      const mods = ap + (rending ? -1 : 0) + (prof.melee ? t.meleeSave : t.rangedSave + opts.cover);
+      const mods = ap + (rending ? -1 : 0) + (prof.melee
+        ? t.meleeSave + (t.parry ? 1 : 0)
+        : t.rangedSave + (t.shield ? 1 : 0) + opts.cover);
       const armourNeed = (!breaching && !prof.gas && t.sv) ? Math.max(3, t.sv - mods) : 99;
       let inv = t.inv;
       if (prof.gas && t.respirator) inv = inv ? Math.min(inv, 5) : 5;
@@ -107,6 +111,8 @@ const CASES = [
   ['Forge Despot with Scar Tissue vs cleaver', 'cleaver', tgt({ T: 4, W: 3, sv: 5 }, ['scarTissue']), {}],
   ['Forge Master with Adaptive Biology vs stiletto', 'stiletto', tgt({ T: 4, W: 2, sv: 5 }, ['adaptiveBiology']), {}],
   ['Dodge and Iron Jaw vs chainsword (Shred)', 'chainsword', tgt({ T: 3, W: 2, sv: 5 }, ['dodge', 'ironJaw']), {}],
+  ['Dodge vs a hand flamer (Template: no dodge)', 'handFlamer', tgt({ T: 3, W: 2, sv: 5 }, ['dodge']), {}],
+  ['Hystrar shield plus a parry weapon vs chainsword (no stacking)', 'chainsword', tgt({ T: 3, W: 2, sv: 5 }, ['hystrarShield', 'parryWeapon']), {}],
   ['hand flamer with Blaze vs Ganger', 'handFlamer', tgt({ T: 3, W: 1, sv: 6 }), {}],
   ['hand flamer vs a hazard suit', 'handFlamer', tgt({ T: 3, W: 2, sv: 5 }, ['hazardSuit']), {}],
   ['reflec shroud vs plasma', 'plasma', tgt({ T: 3, W: 2, sv: 5 }, ['reflecShroud']), {}],
