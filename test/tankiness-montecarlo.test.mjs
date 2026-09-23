@@ -25,8 +25,9 @@ function woundTarget(S, Tn) {
   return 5;
 }
 
-/* One fighter, one weapon profile, rolled until Down. */
-function simulate(prof, t, opts, trials, seed) {
+/* One fighter, hit until Down. `pick` returns the weapon profile for each
+   hit: a fixed one, or one drawn from the enemy mix. */
+function simulate(pick, t, opts, trials, seed) {
   const rand = rng(seed);
   const d6 = () => 1 + Math.floor(rand() * 6);
   /* Injury dice: 1-2 Flesh Wound (1), 3-5 Seriously Injured (2), 6 Out of Action (3). */
@@ -34,7 +35,7 @@ function simulate(prof, t, opts, trials, seed) {
   const isDown = () => opts.endState === 'ooa' ? cond === 3 : cond >= 2;
   let w, cond, burnt, bioUsed;
 
-  function oneHit(allowBlaze) {
+  function oneHit(allowBlaze, prof) {
     if (cond === 3) return;
     const skills = cond === 0;   // an Injured fighter gains no benefit from skills (p48)
     let Tn = t.T;
@@ -83,20 +84,30 @@ function simulate(prof, t, opts, trials, seed) {
         }
       }
     }
-    if (blaze && allowBlaze) oneHit(false);
+    if (blaze && allowBlaze) oneHit(false, prof);
   }
 
   let total = 0;
   for (let i = 0; i < trials; i++) {
     w = t.W; cond = 0; burnt = false; bioUsed = false;
     let n = 0;
-    while (!isDown()) { n++; oneHit(true); }
+    while (!isDown()) { n++; oneHit(true, pick(rand)); }
     total += n;
   }
   return total / trials;
 }
 
 const prof = (id) => T.POOL_V1.profiles.find(x => x.id === id);
+const fixed = (id) => () => prof(id);
+/* Draw a weapon from the pool by its weight under a named opponent profile. */
+function mixPicker(opponent) {
+  const weights = T.poolWeights(T.POOL_V1, opponent);
+  return (rand) => {
+    let r = rand();
+    for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r < 0) return T.POOL_V1.profiles[i]; }
+    return T.POOL_V1.profiles[weights.length - 1];
+  };
+}
 const items = (ids) => ids.map(id => T.ITEMS.find(x => x.id === id));
 const tgt = (profile, ids = []) => T.effectiveTarget(Object.assign({ S: 3, I: 4, inv: 0 }, profile), items(ids));
 
@@ -128,8 +139,27 @@ for (const [name, weapon, t, o] of CASES) {
   const opts = Object.assign({ endState: 'down', cover: 0 }, o);
   test(`monte carlo, hits to Down: ${name}`, () => {
     const exact = T.hitsToDown(prof(weapon), t, opts).hits;
-    const sim = simulate(prof(weapon), t, opts, TRIALS, seed += 0x85ebca6b);
+    const sim = simulate(fixed(weapon), t, opts, TRIALS, seed += 0x85ebca6b);
     assert.ok(Math.abs(exact - sim) / exact < TOL,
       `${name}: exact ${exact.toFixed(4)} vs simulated ${sim.toFixed(4)}`);
+  });
+}
+
+/* The headline: every hit drawn from the enemy weapon mix. */
+const MIX_CASES = [
+  ['Ganger, default mix', { T: 3, W: 1, sv: 6 }, [], 'default', {}],
+  ['Champion with a refractor field, default mix', { T: 3, W: 2, sv: 5 }, ['refractor'], 'default', {}],
+  ['Prime with a Hystrar shield and Dodge, melee rush', { T: 3, W: 3, sv: 5 }, ['hystrarShield', 'dodge'], 'meleeRush', {}],
+  ['Forge Despot with heavy carapace and a bio-booster, plasma/melta heavy, +1 cover', { T: 4, W: 3, sv: 5 }, ['heavyCarapace', 'bioBooster'], 'plasmaMelta', { cover: 1 }],
+  ['Brute, volume fire, Out of Action only', { T: 4, W: 4, sv: 4 }, [], 'volumeFire', { endState: 'ooa' }]
+];
+for (const [name, profile, ids, opponent, o] of MIX_CASES) {
+  test(`monte carlo, hits to Down from the weapon mix: ${name}`, () => {
+    const r = T.rate({ profile: Object.assign({ S: 3, I: 4, inv: 0 }, profile), wargear: ids.filter(id => T.WARGEAR.some(w => w.id === id)),
+      skills: ids.filter(id => T.SKILLS.some(s => s.id === id)) }, Object.assign({ opponent, gang: null }, o));
+    const opts = Object.assign({ endState: 'down', cover: 0 }, o);
+    const sim = simulate(mixPicker(opponent), tgt(profile, ids), opts, TRIALS, seed += 0x85ebca6b);
+    assert.ok(Math.abs(r.hitsToDown - sim) / r.hitsToDown < TOL,
+      `${name}: exact ${r.hitsToDown.toFixed(4)} vs simulated ${sim.toFixed(4)}`);
   });
 }

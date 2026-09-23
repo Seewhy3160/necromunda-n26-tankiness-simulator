@@ -55,51 +55,54 @@ const fill = (bind, value) => page.fill(`[data-bind="${bind}"]`, String(value));
 t('the page loads and rates the default fighter without errors', async () => {
   assert.equal(errors.length, 0, errors.join('\n'));
   assert.equal(await page.title(), 'Necromunda (N26) Tankiness Simulator');
-  assert.match(await out('ti'), /^\d+$/);
-  assert.match(await out('tp100'), /^\d+\.\d$/);
+  assert.match(await out('hits'), /^\d+\.\d\d$/);
+  assert.match(await out('hitsPer100'), /^\d+\.\d\d$/);
 });
 
-t('the default is a Van Saar Augmek: T3 W2 Sv5+, 95 credits, TI about 152', async () => {
+t('the default is a Van Saar Augmek: T3 W2 Sv5+, 95 credits, a few hits to Down', async () => {
   assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'vsAugmek');
   assert.equal(await page.inputValue('[data-bind="t.T"]'), '3');
   assert.equal(await page.inputValue('[data-bind="t.W"]'), '2');
   assert.equal(await page.inputValue('[data-bind="t.sv"]'), '5');
   assert.equal(await page.inputValue('[data-bind="c.base"]'), '95');
   assert.equal(await out('total'), '95');
-  const ti = parseInt(await out('ti'), 10);
-  assert.ok(ti >= 150 && ti <= 154, `TI ${ti}`);
+  const hits = parseFloat(await out('hits'));
+  assert.ok(hits > 3 && hits < 6, `hits ${hits}`);
   assert.match(await page.textContent('[data-profile]'), /Augmek.*Champion.*95 credits/);
+  assert.match(await page.textContent('[data-minor]'), /Down on the first hit\s*\d+\.\d%/);
 });
 
-t('picking the Tek gives the reference score of 100', async () => {
+t('picking the Tek gives the plain-Ganger reference', async () => {
   await setSel('pick.fighter', 'vsTek');
-  assert.equal(await out('ti'), '100');
+  assert.match(await page.textContent('[data-minor]'), /vs a plain Ganger\s*×1\.00/);
   assert.equal(await page.inputValue('[data-bind="c.base"]'), '30');
-  assert.equal(await out('tp100'), (100 * 100 / 30).toFixed(1));
+  const hits = parseFloat(await out('hits'));
+  assert.ok(Math.abs(parseFloat(await out('hitsPer100')) - 100 * hits / 30) < 0.02);
 });
 
 t('every change recomputes on the spot, with no submit button', async () => {
   assert.equal(await page.$('button[type=submit]'), null);
-  const before = await out('ti');
+  const before = await out('hits');
   await setSel('t.W', 3);
-  const after = await out('ti');
+  const after = await out('hits');
   assert.notEqual(before, after);
   assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'vsTek');   // the picker only seeds
   await setSel('t.W', 1);
-  assert.equal(await out('ti'), before);
+  assert.equal(await out('hits'), before);
 });
 
-t('typed credits feed TI per 100 credits', async () => {
+t('typed credits feed hits per 100 credits', async () => {
   await fill('c.weapons', 20);
   assert.equal(await out('total'), '50');
-  assert.equal(await out('tp100'), (100 * 100 / 50).toFixed(1));
+  const hits = parseFloat(await out('hits'));
+  assert.ok(Math.abs(parseFloat(await out('hitsPer100')) - 100 * hits / 50) < 0.02);
   await fill('c.weapons', 0);
 });
 
-t('toggling a wargear chip raises TI and adds its cost', async () => {
-  const before = parseInt(await out('ti'), 10);
+t('toggling a wargear chip raises hits to Down and adds its cost', async () => {
+  const before = parseFloat(await out('hits'));
   await check('g.refractor', true);
-  const after = parseInt(await out('ti'), 10);
+  const after = parseFloat(await out('hits'));
   assert.ok(after > before, `${before} -> ${after}`);
   assert.equal(await out('total'), '80');
   assert.match(await page.textContent('[data-notes]'), /Refractor field/);
@@ -124,30 +127,36 @@ t('the gear table lists every item with a marginal, best value first', async () 
   assert.equal(rows.length, 20);
   const first = rows.find(r => !/unavail/.test(r.cls));
   assert.ok(first, 'an available row');
-  assert.match(first.cells[2], /^[+-]?\d+\.\d$/);
+  assert.match(first.cells[2], /^[+-]?\d+\.\d\d$/);
   const available = rows.filter(r => !/unavail/.test(r.cls)).map(r => parseFloat(r.cells[3]) || -Infinity);
-  for (let i = 1; i < available.length; i++) assert.ok(available[i - 1] >= available[i], 'sorted by TI per 100c');
+  for (let i = 1; i < available.length; i++) assert.ok(available[i - 1] >= available[i], 'sorted by hits per 100c');
 });
 
-t('the per-weapon table is sorted weakest first and shows the meltagun on a Ganger at 1.25', async () => {
+t('the per-weapon table is sorted weakest first and shows the meltagun on a Ganger at 1.25 hits for 140c', async () => {
   const rows = await page.$$eval('[data-rows="weapons"] tr', trs => trs.map(tr => [...tr.children].map(td => td.textContent)));
   assert.equal(rows.length, 8);
   assert.equal(rows[0][0], 'Meltagun');
-  assert.equal(rows[0][2], '1.25');
-  assert.equal(rows[0][4], '×1.00');
-  for (let i = 1; i < rows.length; i++) assert.ok(parseFloat(rows[i - 1][2]) <= parseFloat(rows[i][2]));
+  assert.equal(rows[0][1], '140c');
+  assert.equal(rows[0][3], '1.25');
+  assert.equal(rows[0][5], '×1.00');
+  for (let i = 1; i < rows.length; i++) assert.ok(parseFloat(rows[i - 1][3]) <= parseFloat(rows[i][3]));
+  const las = rows.find(r => /Laspistol/.test(r[0]));
+  assert.equal(las[1], '5c');
+  assert.equal(las[3], '3.60');
 });
 
 t('switching gang swaps the fighter list and seeds its first entry', async () => {
+  const tek = parseFloat(await out('hits'));
   await setSel('pick.gang', 'goliath');
   assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'goBreaker');
   assert.equal(await page.inputValue('[data-bind="t.T"]'), '4');
   assert.equal(await page.inputValue('[data-bind="c.base"]'), '70');
-  assert.equal(await out('ti'), '124');
+  const breaker = parseFloat(await out('hits'));
+  assert.ok(breaker > tek, `Forge Breaker ${breaker} vs Tek ${tek}`);
   assert.doesNotMatch(await page.getAttribute('[data-gear="ironFlesh"]', 'class'), /unavail/);
   await check('g.ironFlesh', true);
   assert.equal(await out('total'), '100');
-  assert.ok(parseInt(await out('ti'), 10) > 160);
+  assert.ok(parseFloat(await out('hits')) > breaker + 0.5);
   await check('g.ironFlesh', false);
 });
 
@@ -155,16 +164,16 @@ t('cover and the opponent profile change the answer without breaking the Ganger 
   await setSel('pick.gang', 'vanSaar');
   await setSel('pick.fighter', 'vsTek');
   await setSel('o.cover', 2);
-  assert.equal(await out('ti'), '100');
+  assert.match(await page.textContent('[data-minor]'), /vs a plain Ganger\s*×1\.00/);
   await setSel('pick.fighter', 'vsPrime');
-  const cover2 = await out('ti');
+  const cover2 = await out('hits');
   await setSel('o.cover', 0);
-  assert.notEqual(await out('ti'), cover2);
-  const dflt = await out('ti');
+  assert.notEqual(await out('hits'), cover2);
+  const dflt = await out('hits');
   await setSel('o.opponent', 'meleeRush');
-  assert.notEqual(await out('ti'), dflt);
+  assert.notEqual(await out('hits'), dflt);
   await setSel('o.opponent', 'default');
-  assert.match(await page.textContent('[data-pool]'), /Reference pool v1/);
+  assert.match(await page.textContent('[data-pool]'), /Enemy weapon mix, pool v1/);
 });
 
 t('nothing on the page reaches the network or storage', async () => {

@@ -286,13 +286,33 @@ test('endState ooa counts only Out of Action; Seriously Injured fighters keep ta
 
 /* ---- rating, cost and marginals ------------------------------------------ */
 
-test('TI is a weighted geometric mean of hits relative to the Ganger, times 100', () => {
-  const r = rate(CHAMPION);
+test('hits to Down is the expected count when every hit is drawn from the weapon mix', () => {
+  const t = tgt(CHAMPION);
   const w = T.poolWeights(pool, 'default');
-  let acc = 0;
-  r.perProfile.forEach((p, i) => { acc += w[i] * Math.log(p.vsGanger); });
-  near(r.ti, 100 * Math.exp(acc));
-  assert.ok(r.ti > 140 && r.ti < 165, `Champion TI ${r.ti}`);   // design prototype: 151
+  const mix = T.expectedHits(pool.profiles.map((p, i) => ({ prof: p, weight: w[i] })), t, opts());
+  const r = rate(CHAMPION);
+  near(r.hitsToDown, mix.hits);
+  // The first-hit chance of going Down is exactly the weighted mix of the per-weapon chances.
+  let p1 = 0;
+  r.perProfile.forEach(p => { p1 += p.weight * p.pDownFirst; });
+  near(r.pDownFirst, p1);
+  // and the expectation sits between the easiest and hardest weapon
+  const hs = r.perProfile.map(p => p.hits);
+  assert.ok(r.hitsToDown > Math.min(...hs) && r.hitsToDown < Math.max(...hs));
+  // A one-weapon mix is that weapon; weights are normalised.
+  near(T.expectedHits([{ prof: prof('lasStub'), weight: 7 }], tgt(GANGER), opts()).hits, 3.6);
+  near(T.expectedHits([{ prof: prof('lasStub'), weight: 2 }, { prof: prof('lasStub'), weight: 5 }], tgt(GANGER), opts()).hits, 3.6);
+  // Two weapons that each Down a fresh W1 fighter or leave it Injured with the
+  // same follow-up: the chain is a plain mixture. Melta (no save) vs a W1 T3
+  // fighter with no armour, mixed with a no-save Lethality-1 profile.
+  const l1 = Object.assign({}, prof('meltagun'), { lethality: 1 });
+  const bare = tgt({ T: 3, W: 1, sv: 0 });
+  const pW = 5 / 6;
+  const pDown = 0.5 * pW * (26 / 27) + 0.5 * pW * (4 / 6);   // Injured leaves the same state, so E = 1 / pDown
+  near(T.expectedHits([{ prof: prof('meltagun'), weight: 1 }, { prof: l1, weight: 1 }], bare, opts()).hits, 1 / pDown);
+  // TI is the same figure relative to a plain Ganger.
+  near(r.ti, 100 * r.hitsToDown / r.gangerHits);
+  near(rate(GANGER).ti, 100);
 });
 
 test('more Wounds, Toughness or Save always means a higher TI', () => {
@@ -306,8 +326,10 @@ test('more Wounds, Toughness or Save always means a higher TI', () => {
 test('the cost lines add up, defensive gear is priced from the tables, and TP100 divides by the total', () => {
   const r = T.rate({ profile: CHAMPION, wargear: ['refractor', 'meshArmour'], skills: ['dodge'], cost: { base: 95, weapons: 140, other: 20 } });
   assert.deepEqual(r.cost, { base: 95, weapons: 140, other: 20, defensive: 90, total: 345 });
+  near(r.hitsPer100, 100 * r.hitsToDown / 345);
   near(r.tp100, 100 * r.ti / 345);
-  assert.equal(T.rate({ profile: CHAMPION }).tp100, null);   // no cost given
+  assert.equal(T.rate({ profile: CHAMPION }).tp100, null);
+  assert.equal(T.rate({ profile: CHAMPION }).hitsPer100, null);   // no cost given
   const g = T.rate({ profile: CHAMPION, geneSmithing: ['reducedBoneDensity'], cost: { base: 70 } }, { gang: 'goliath' });
   assert.equal(g.cost.defensive, -10);
   assert.equal(g.cost.total, 60);
@@ -317,9 +339,13 @@ test('each item reports its marginal TI whether it is on the fighter or not', ()
   const off = rate(CHAMPION), on = rate(CHAMPION, { wargear: ['refractor'] });
   const gOff = off.gear.find(x => x.id === 'refractor'), gOn = on.gear.find(x => x.id === 'refractor');
   assert.equal(gOff.selected, false); assert.equal(gOn.selected, true);
+  near(gOff.dHits, on.hitsToDown - off.hitsToDown);
+  near(gOn.dHits, on.hitsToDown - off.hitsToDown);
+  near(gOff.dHitsPer100, 100 * gOff.dHits / 50);
   near(gOff.dTi, on.ti - off.ti);
   near(gOn.dTi, on.ti - off.ti);
   near(gOff.dTp100, 100 * gOff.dTi / 50);
+  near(gOff.ratio, on.hitsToDown / off.hitsToDown);
   assert.ok(gOn.byRole.leaderKiller > 0.4 && gOn.byRole.template === 0, JSON.stringify(gOn.byRole));
 });
 
@@ -343,9 +369,14 @@ test('the break-even cost is where the item stops lowering TI per credit', () =>
   // Reduced Bone Density pays off only on fighters cheaper than its break-even.
   const b = T.rate({ profile: { T: 4, W: 1, sv: 6 }, cost: { base: 70 } }, { gang: 'goliath' }).gear.find(x => x.id === 'reducedBoneDensity');
   assert.equal(b.breakEvenDirection, 'below');
-  assert.ok(b.breakEven > 0 && b.breakEven < 70, `C* ${b.breakEven}`);
-  assert.ok(b.dTi < 0);
+  assert.ok(b.breakEven > 0, `C* ${b.breakEven}`);
+  assert.ok(b.dHits < 0 && b.dTi < 0);
+  assert.equal(b.dHitsPer100, null);
   assert.equal(b.dTp100, null);
+  // Cheaper than C*, saving the 10 credits raises hits per credit; dearer, it lowers them.
+  const hp = (base, gene) => T.rate({ profile: { T: 4, W: 1, sv: 6 }, geneSmithing: gene, cost: { base } }, { gang: 'goliath' }).hitsPer100;
+  assert.ok(hp(b.breakEven - 5, ['reducedBoneDensity']) > hp(b.breakEven - 5, []));
+  assert.ok(hp(b.breakEven + 5, ['reducedBoneDensity']) < hp(b.breakEven + 5, []));
 });
 
 test('the refraction cloak is reported as evasion, not TI', () => {
@@ -399,18 +430,22 @@ test('gang tables carry the transcribed profiles and costs', () => {
   near(rate({ T: tek.T, W: tek.W, sv: tek.sv }).ti, 100);
 });
 
-test('the design prototype figures are reproduced to within a couple of TI', () => {
-  const ti = (p, wargear = [], gene = [], gang = 'vanSaar') => rate(p, { wargear, geneSmithing: gene }, { gang }).ti;
-  const close = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
-  close(ti(GANGER, ['refractor']), 135, 3);
-  close(ti(CHAMPION, ['heavyCarapace']), 250, 3);
-  close(ti(CHAMPION, ['reflecShroud']), 178, 3);
-  close(ti({ T: 3, W: 3, sv: 5 }), 224, 3);
-  close(ti({ T: 4, W: 1, sv: 6 }), 124, 2);
-  close(ti({ T: 4, W: 3, sv: 5 }), 282, 2);
-  close(ti({ T: 4, W: 3, sv: 5 }, [], ['ironFlesh'], 'furnaceBrutes'), 350, 3);
-  close(ti({ T: 4, W: 3, sv: 5 }, [], ['scarTissue'], 'furnaceBrutes'), 300, 3);
-  close(ti({ T: 4, W: 3, sv: 5 }, [], ['reducedBoneDensity'], 'furnaceBrutes'), 226, 2);
+test('the headline figures land where the rules say they should', () => {
+  const h = (p, wargear = [], gene = [], gang = 'vanSaar') => rate(p, { wargear, geneSmithing: gene }, { gang }).hitsToDown;
+  const ganger = h(GANGER);
+  assert.ok(ganger > 1.8 && ganger < 2.6, `Ganger takes ${ganger} mixed hits`);
+  // A Champion (W2, 5+) takes clearly more than a Ganger, though plasma and
+  // melta (40% of the mix) blunt the second Wound.
+  assert.ok(h(CHAMPION) > ganger * 1.3, `Champion ${h(CHAMPION)} vs Ganger ${ganger}`);
+  assert.ok(h({ T: 3, W: 3, sv: 5 }) > h(CHAMPION));
+  assert.ok(h({ T: 4, W: 1, sv: 6 }) > ganger);
+  // Heavy carapace on a Champion beats a refractor field, which beats a reflec shroud.
+  assert.ok(h(CHAMPION, ['heavyCarapace']) > h(CHAMPION, ['refractor']) && h(CHAMPION, ['refractor']) > h(CHAMPION, ['reflecShroud']));
+  // Goliath gene-smithing: Iron Flesh beats Scar Tissue; Reduced Bone Density loses hits.
+  const despot = { T: 4, W: 3, sv: 5 };
+  assert.ok(h(despot, [], ['ironFlesh'], 'furnaceBrutes') > h(despot, [], ['scarTissue'], 'furnaceBrutes'));
+  assert.ok(h(despot, [], ['scarTissue'], 'furnaceBrutes') > h(despot));
+  assert.ok(h(despot, [], ['reducedBoneDensity'], 'furnaceBrutes') < h(despot));
 });
 
 /* ---- interface -------------------------------------------------------------- */
@@ -430,7 +465,9 @@ test('a custom pool can be rated, and carries its own version tag', () => {
   const r = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { pool: custom });
   assert.equal(r.poolVersion, 'test');
   assert.equal(r.perProfile.length, 1);
+  near(r.hitsToDown, hits(CHAMPION, 'lasStub'));
   near(r.ti, 100 * hits(CHAMPION, 'lasStub') / 3.6);
+  assert.equal(r.perProfile[0].cost, '5');   // Trading Post price rides along for display
 });
 
 test('opponent profiles change the answer', () => {

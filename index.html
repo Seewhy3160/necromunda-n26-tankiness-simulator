@@ -785,10 +785,10 @@ const Tankiness = (function (Engine, Data) {
     return p;
   }
 
-  function profileOf(id, name, role, family, src) {
+  function profileOf(id, name, role, family, src, cost) {
     const tr = src.traits;
     return {
-      id: id, name: name, role: role, family: family, source: src.name,
+      id: id, name: name, role: role, family: family, source: src.name, cost: cost,
       str: attackerStr(src.str), ap: src.ap, lethality: src.lethality || 0, damage: tr.damage,
       toxin: tr.toxin, rending: tr.rending, shred: tr.shred, breaching: tr.breaching, blaze: tr.blaze,
       gas: tr.gas, web: tr.web, flash: tr.flash, graviton: tr.graviton,
@@ -803,15 +803,19 @@ const Tankiness = (function (Engine, Data) {
     version: POOL_VERSION,
     meleeStrength: MELEE_ATTACKER_S,
     roles: ROLES,
+    /* Credit costs are the Trading Post prices (p154-157); the cleaver is the
+       Goliath list price. They are shown for scale only and never enter the
+       rating: how much an attacker paid for a hit says nothing about how well
+       the target absorbs it. */
     profiles: [
-      profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun')),
-      profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun')),
-      profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer')),
-      profileOf('lasStub',    'Laspistol / stub gun',     'throwaway',    'las',    fromData(Data.ranged, 'Laspistol')),
-      profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife')),
-      profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword')),
-      profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword')),
-      profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER)
+      profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun'), '140'),
+      profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun'), '85 / 70'),
+      profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer'), '45'),
+      profileOf('lasStub',    'Laspistol / stub gun',     'throwaway',    'las',    fromData(Data.ranged, 'Laspistol'), '5'),
+      profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife'), '25'),
+      profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword'), '20'),
+      profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword'), '40'),
+      profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER, '25')
     ],
     /* Named opponent profiles: how much of the pool each role carries. */
     weights: {
@@ -1066,12 +1070,31 @@ const Tankiness = (function (Engine, Data) {
      hit can only leave the state as it is or move it forward, each state's
      expectation solves in one pass from the most damaged state back:
        E(s) = (1 + sum over s' != s, s' not Down of P(s->s') E(s')) / (1 - P(s->s)) */
-  function hitsToDown(prof, t, opts) {
+  /* `mix` is a list of { prof, weight }. With one entry it is the expected
+     hits from that weapon; with the whole pool it is the expected hits when
+     every hit is drawn at random from the enemy weapon mix, which is the
+     headline figure. Weights are normalised here. */
+  function expectedHits(mix, t, opts) {
     const isDown = opts.endState === 'ooa'
       ? (k) => ((k >> 2) & 3) === COND.OOA
       : (k) => ((k >> 2) & 3) >= COND.SERIOUS;
+    let total = 0;
+    for (const m of mix) total += Math.max(0, m.weight);
+    if (!(total > 0)) throw new Error('the weapon mix has no weight');
     const trans = new Map(), E = new Map();
-    const T = (id) => { let m = trans.get(id); if (!m) { m = resolveHit(id, prof, t, opts, true); trans.set(id, m); } return m; };
+    const T = (id) => {
+      let m = trans.get(id);
+      if (!m) {
+        m = new Map();
+        for (const entry of mix) {
+          if (!(entry.weight > 0)) continue;
+          const w = entry.weight / total;
+          for (const [k, q] of resolveHit(id, entry.prof, t, opts, true)) addTo(m, k, w * q);
+        }
+        trans.set(id, m);
+      }
+      return m;
+    };
     function expect(id) {
       if (E.has(id)) return E.get(id);
       let stay = 0, acc = 1;
@@ -1088,6 +1111,10 @@ const Tankiness = (function (Engine, Data) {
     let pDownFirst = 0;
     for (const [k, p] of T(start)) if (isDown(k)) pDownFirst += p;
     return { hits: expect(start), pDownFirst: pDownFirst };
+  }
+
+  function hitsToDown(prof, t, opts) {
+    return expectedHits([{ prof: prof, weight: 1 }], t, opts);
   }
 
   /* ---- Rating ------------------------------------------------------------------ */
@@ -1111,14 +1138,15 @@ const Tankiness = (function (Engine, Data) {
     return opts;
   }
 
-  /* Weighted geometric mean of hits, and the per-profile detail. */
+  /* Hits to Down against each weapon on its own, and against the mix. */
   function score(profile, items, opts) {
     const t = effectiveTarget(profile, items);
     const per = opts.pool.profiles.map(p => {
       const r = hitsToDown(p, t, opts);
-      return { id: p.id, name: p.name, role: p.role, family: p.family, hits: r.hits, pDownFirst: r.pDownFirst };
+      return { id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, hits: r.hits, pDownFirst: r.pDownFirst };
     });
-    return { target: t, per: per };
+    const mix = expectedHits(opts.pool.profiles.map((p, i) => ({ prof: p, weight: opts.weights[i] })), t, opts);
+    return { target: t, per: per, mix: mix };
   }
 
   function geoMean(values, weights) {
@@ -1131,17 +1159,14 @@ const Tankiness = (function (Engine, Data) {
     return den > 0 ? Math.exp(num / den) : 1;
   }
 
+  /* The plain Ganger under the same scenario, for the "vs Ganger" ratios. */
   const baselineCache = new Map();
   function baseline(opts) {
-    const key = [opts.pool.version, opts.endState, opts.cover].join('|');
-    if (opts.pool !== POOL_V1) return score(GANGER, [], opts).per;   // custom pools are not cached
+    if (opts.pool !== POOL_V1 || typeof opts.opponent !== 'string') return score(GANGER, [], opts);   // not cached
+    const key = [opts.pool.version, opts.endState, opts.cover, opts.opponent].join('|');
     let b = baselineCache.get(key);
-    if (!b) { b = score(GANGER, [], opts).per; baselineCache.set(key, b); }
+    if (!b) { b = score(GANGER, [], opts); baselineCache.set(key, b); }
     return b;
-  }
-
-  function tiOf(per, base, weights) {
-    return 100 * geoMean(per.map((p, i) => p.hits / base[i].hits), weights);
   }
 
   function availability(item, opts) {
@@ -1200,7 +1225,10 @@ const Tankiness = (function (Engine, Data) {
     const base = baseline(opts);
     const weights = opts.weights;
     const main = score(profile, selected, opts);
-    const ti = tiOf(main.per, base, weights);
+    /* The headline: expected hits to Down when every hit comes from the
+       enemy weapon mix. TI is the same figure relative to a plain Ganger. */
+    const hits = main.mix.hits;
+    const ti = 100 * hits / base.mix.hits;
 
     const c = fighter.cost || {};
     const cost = {
@@ -1208,11 +1236,12 @@ const Tankiness = (function (Engine, Data) {
       defensive: selected.reduce((a, it) => a + (it.cost || 0), 0)
     };
     cost.total = cost.base + cost.weapons + cost.other + cost.defensive;
+    const hitsPer100 = cost.total > 0 ? 100 * hits / cost.total : null;
     const tp100 = cost.total > 0 ? 100 * ti / cost.total : null;
 
     const perProfile = main.per.map((p, i) => ({
-      id: p.id, name: p.name, role: p.role, family: p.family, weight: weights[i],
-      hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base[i].hits, gangerHits: base[i].hits
+      id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, weight: weights[i],
+      hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base.per[i].hits, gangerHits: base.per[i].hits
     }));
 
     /* Marginal value of every rateable item, selected or not. For an item in
@@ -1222,8 +1251,10 @@ const Tankiness = (function (Engine, Data) {
       const on = selected.indexOf(it) >= 0;
       const sWith = on && withSel.length === selected.length && withSel.every(x => selected.indexOf(x) >= 0) ? main : score(profile, withSel, opts);
       const sWithout = !on ? main : score(profile, withoutSel, opts);
-      const tiWith = tiOf(sWith.per, base, weights), tiWithout = tiOf(sWithout.per, base, weights);
-      const ratio = tiWith / tiWithout;
+      const hitsWith = sWith.mix.hits, hitsWithout = sWithout.mix.hits;
+      const tiWith = 100 * hitsWith / base.mix.hits, tiWithout = 100 * hitsWithout / base.mix.hits;
+      const ratio = hitsWith / hitsWithout;
+      const dHits = hitsWith - hitsWithout;
       const dTi = tiWith - tiWithout;
       const g = it.cost || 0;
       // Break-even cost C*: the rest of the fighter must be worth more than
@@ -1241,6 +1272,7 @@ const Tankiness = (function (Engine, Data) {
       return {
         id: it.id, name: it.name, kind: it.kind, group: it.group || it.kind, cost: g, text: it.text,
         selected: on, available: av.available, availability: av.status, availabilityNote: av.note,
+        hitsWith: hitsWith, hitsWithout: hitsWithout, dHits: dHits, dHitsPer100: g > 0 ? 100 * dHits / g : null,
         tiWith: tiWith, tiWithout: tiWithout, dTi: dTi, ratio: ratio,
         dTp100: g > 0 ? 100 * dTi / g : null,
         breakEven: breakEven, breakEvenDirection: breakEvenDirection, byRole: byRole
@@ -1263,7 +1295,8 @@ const Tankiness = (function (Engine, Data) {
     if (!opts.equipmentList) notes.push('No Equipment List for this fighter, so every item is rated as available.');
 
     return {
-      ti: ti, tp100: tp100, hitsToDown: geoMean(perProfile.map(p => p.hits), weights),
+      hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
+      ti: ti, tp100: tp100, gangerHits: base.mix.hits,
       cost: cost, perProfile: perProfile,
       evasion: { ranged: main.target.evasionRanged },
       target: main.target,
@@ -1276,7 +1309,7 @@ const Tankiness = (function (Engine, Data) {
   }
 
   return {
-    rate: rate, hitsToDown: hitsToDown, resolveHit: resolveHit, applyHit: applyHit,
+    rate: rate, hitsToDown: hitsToDown, expectedHits: expectedHits, resolveHit: resolveHit, applyHit: applyHit,
     effectiveTarget: effectiveTarget, poolWeights: poolWeights, availability: availability,
     enc: enc, dec: dec, GANGER: GANGER, BEARER_PICK_2: BEARER_PICK_2,
     WARGEAR: WARGEAR, SKILLS: SKILLS, GENE_SMITHING: GENE_SMITHING, ITEMS: ITEMS,
@@ -1400,8 +1433,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       el('div', { class: 'k', text: label }));
     return el('div', { class: 'results' },
       el('div', { class: 'odds' },
-        mk('ti', 'ti', 'Tankiness index'),
-        mk('tp', 'tp100', 'TI per 100 credits'),
+        mk('ti', 'hits', 'Hits to Down'),
+        mk('tp', 'hitsPer100', 'Hits per 100 credits'),
         mk('cr', 'total', 'Total credits')),
       el('div', { class: 'minor', 'data-minor': '1' }),
       el('div', { class: 'warn hidden', 'data-warn': '1' }),
@@ -1443,27 +1476,29 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       field('Cover', 'o.cover', COVER, 0, 'Applies to armour saves against shooting; invulnerable saves ignore it.'),
       field('Down means', 'o.endState', END, 'down')));
     root.appendChild(tableBlock('What each item would do',
-      ['Item', 'Cost', 'ΔTI', 'ΔTI / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee', 'Where from'],
+      ['Item', 'Cost', 'ΔHits', 'ΔHits / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee', 'Where from'],
       'gear',
-      'ΔTI is the change from adding the item (or, for one already on, what dropping it would cost). ' +
-      'Break-even is the cost the rest of the fighter must exceed for the item to raise TI per credit. ' +
-      'Role columns are the gain in hits to Down against that weapon class. ● marks items on the fighter.'));
+      'ΔHits is the change in hits to Down from adding the item (or, for one already on, what dropping it would cost); ' +
+      'ΔHits / 100c is that gain per 100 credits spent on the item. ' +
+      'Break-even is the cost the rest of the fighter must exceed for the item to raise hits per credit. ' +
+      'Role columns are the gain against that weapon class. ● marks items on the fighter.'));
     root.appendChild(tableBlock('Hits to Down, by weapon',
-      ['Weapon', 'Weight', 'Hits to Down', 'Down on 1st hit', 'vs Ganger'],
+      ['Weapon', 'Weapon cost', 'Share of hits', 'Hits to Down', 'Down on 1st hit', 'vs Ganger'],
       'weapons',
-      'Sorted weakest first: the top row is what this fighter is most exposed to.'));
+      'Sorted weakest first: the top row is what this fighter is most exposed to. Weapon cost is the Trading Post ' +
+      'price, for scale; it does not enter the rating.'));
     root.appendChild(assumptionsBlock());
   }
 
   function assumptionsBlock() {
     const body = el('div', { class: 'body' });
     body.appendChild(el('p', { html:
-      '<b>The rating.</b> For each weapon in the pool the module works out the expected number of confirmed hits ' +
-      'needed to leave the fighter Seriously Injured or Out of Action, by pushing the fighter through the ' +
-      'wound roll, save and Injury dice hit after hit until it goes Down. The <b>Tankiness Index</b> is the ' +
-      'weighted geometric mean of those figures relative to a plain Ganger (T3, W1, Sv 6+), times 100, so a ' +
-      'Ganger always scores 100 under the same scenario. <b>TI per 100 credits</b> divides by base + weapons + ' +
-      'other + defensive gear.' }));
+      '<b>The rating.</b> Deal the fighter confirmed hits drawn at random from the enemy weapon mix below, ' +
+      'pushing each through the wound roll, the save and the Injury dice, until the fighter is Seriously ' +
+      'Injured or Out of Action. <b>Hits to Down</b> is how many such hits that takes on average, worked out ' +
+      'exactly. <b>Hits per 100 credits</b> divides by base + weapons + other + defensive gear. The per-weapon ' +
+      'table gives the same figure against each weapon on its own; a plain Ganger (T3, W1, Sv 6+) is the ' +
+      '“vs Ganger” reference.' }));
     body.appendChild(el('p', { html:
       '<b>Hits, not attacks.</b> The hit roll is left out on purpose. Weapon Skill, Ballistic Skill, Attacks and ' +
       'Rapid Fire belong to the attacker, so they sit in the damage side of the loadout ranker; this page rates ' +
@@ -1522,14 +1557,14 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
   function td(text, extra) { return el('td', { class: 'num ' + (extra || ''), text: text }); }
 
   function show(root, res, ctx) {
-    root.querySelector('[data-out="ti"]').textContent = Math.round(res.ti);
-    root.querySelector('[data-out="tp100"]').textContent = res.tp100 == null ? '–' : res.tp100.toFixed(1);
+    root.querySelector('[data-out="hits"]').textContent = res.hitsToDown.toFixed(2);
+    root.querySelector('[data-out="hitsPer100"]').textContent = res.hitsPer100 == null ? '–' : res.hitsPer100.toFixed(2);
     root.querySelector('[data-out="total"]').textContent = res.cost.total;
 
     const weakest = res.perProfile.slice().sort((a, b) => a.hits - b.hits)[0];
     const bits = [
-      'Hits to Down, pool average <b>' + res.hitsToDown.toFixed(2) + '</b>',
-      'vs Ganger <b>×' + (res.ti / 100).toFixed(2) + '</b>',
+      'Down on the first hit <b>' + pct(res.pDownFirst) + '</b>',
+      'vs a plain Ganger <b>×' + (res.ti / 100).toFixed(2) + '</b>',
       'Defensive gear <b>' + res.cost.defensive + 'c</b>',
       'Most exposed to <b>' + esc(weakest.name) + '</b> (' + weakest.hits.toFixed(2) + ' hits)'
     ];
@@ -1558,15 +1593,15 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     // gear table: available items first, best value at the top
     const order = (g) => (g.available ? 0 : 1);
     const gear = res.gear.slice().sort((a, b) => order(a) - order(b) ||
-      ((b.dTp100 == null ? -Infinity : b.dTp100) - (a.dTp100 == null ? -Infinity : a.dTp100)) || b.dTi - a.dTi);
+      ((b.dHitsPer100 == null ? -Infinity : b.dHitsPer100) - (a.dHitsPer100 == null ? -Infinity : a.dHitsPer100)) || b.dHits - a.dHits);
     const gearBody = root.querySelector('[data-rows="gear"]');
     gearBody.innerHTML = '';
     for (const g of gear) {
       const tr = el('tr', { class: (g.selected ? 'on ' : '') + (g.available ? '' : 'unavail') });
       tr.appendChild(el('td', { text: g.name, title: g.text }));
       tr.appendChild(td(g.cost ? (g.cost > 0 ? g.cost + 'c' : g.cost + 'c') : '–'));
-      tr.appendChild(td(signed(g.dTi, 1), cls(g.dTi)));
-      tr.appendChild(td(g.dTp100 == null ? '–' : signed(g.dTp100, 0), g.dTp100 == null ? 'zero' : cls(g.dTp100)));
+      tr.appendChild(td(signed(g.dHits, 2), cls(g.dHits)));
+      tr.appendChild(td(g.dHitsPer100 == null ? '–' : signed(g.dHitsPer100, 2), g.dHitsPer100 == null ? 'zero' : cls(g.dHitsPer100)));
       tr.appendChild(td(g.breakEven == null ? '–' : (g.breakEvenDirection === 'below' ? '< ' : '') + credits(g.breakEven)));
       for (const r of ['leaderKiller', 'special', 'template', 'throwaway', 'melee']) {
         const v = g.byRole[r] || 0;
@@ -1582,6 +1617,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     for (const p of res.perProfile.slice().sort((a, b) => a.hits - b.hits)) {
       const tr = el('tr');
       tr.appendChild(el('td', { text: p.name }));
+      tr.appendChild(td(p.cost ? p.cost + 'c' : '–'));
       tr.appendChild(td(pct(p.weight)));
       tr.appendChild(td(p.hits.toFixed(2)));
       tr.appendChild(td(pct(p.pDownFirst)));
@@ -1605,7 +1641,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
 
     // pool description in the assumptions block
     const pool = root.querySelector('[data-pool]');
-    pool.innerHTML = '<b>Reference pool ' + esc(res.poolVersion) + '</b>, weights for the ' +
+    pool.innerHTML = '<b>Enemy weapon mix, pool ' + esc(res.poolVersion) + '</b>, share of hits under the ' +
       esc(Tankiness.OPPONENTS.find(o => o.id === res.options.opponent).name.toLowerCase()) + ' opponent: ' +
       res.perProfile.map(p => esc(p.name) + ' ' + pct(p.weight)).join(', ') +
       '. Melee attackers are Strength ' + Tankiness.POOL_V1.meleeStrength + '. Each weapon counts for its hit ' +

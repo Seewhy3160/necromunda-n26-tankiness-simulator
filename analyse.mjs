@@ -11,9 +11,9 @@ const { Tankiness: T } = loadAll();
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 const rate = (profile, extra = {}, opts = {}) => T.rate(Object.assign({ profile }, extra), opts);
-const ti = (r) => Math.round(r.ti);
-const per100 = (dTi, cost) => cost ? Math.round(100 * dTi / cost) : null;
-const cell = (r, base, cost) => `${ti(r)} (${per100(r.ti - base.ti, cost)})`;
+const hits = (r) => r.hitsToDown.toFixed(2);
+const per100 = (dHits, cost) => cost ? (100 * dHits / cost).toFixed(2) : null;
+const cell = (r, base, cost) => `${hits(r)} (+${per100(r.hitsToDown - base.hitsToDown, cost)})`;
 const table = (headers, rows) =>
   ['| ' + headers.join(' | ') + ' |', '|' + headers.map(() => '---').join('|') + '|', ...rows.map(r => '| ' + r.join(' | ') + ' |')].join('\n');
 
@@ -25,7 +25,7 @@ const sections = {};
   const gear = ['hystrarShield', 'refractor', 'meshArmour', 'bioBooster'];
   const rows = T.GANGS.vanSaar.fighters.filter(f => ['Tek', 'Archeotek', 'Augmek', 'Prime'].includes(f.name)).map(f => {
     const base = rate(f, { cost: { base: f.cost } }, { gang: 'vanSaar' });
-    return [`${f.name} (${f.cost})`, String(ti(base))].concat(gear.map(id =>
+    return [`${f.name} (${f.cost})`, hits(base)].concat(gear.map(id =>
       cell(rate(f, { wargear: [id], cost: { base: f.cost } }, { gang: 'vanSaar' }), base, item(id).cost)));
   });
   sections.vanSaar = table(['Fighter (credits)', 'No gear'].concat(gear.map(id => `+ ${item(id).name} (${item(id).cost})`)), rows);
@@ -42,14 +42,14 @@ const sections = {};
   ];
   const rows = fighters.map(([name, f, gang]) => {
     const base = rate(f, { cost: { base: f.cost } }, { gang });
-    return [`${name} (${f.cost})`, String(ti(base))].concat(cols.map(([id, kind]) => {
+    return [`${name} (${f.cost})`, hits(base)].concat(cols.map(([id, kind]) => {
       const extra = kind === 'gene' ? { geneSmithing: [id] } : { wargear: [id] };
       const r = rate(f, Object.assign({ cost: { base: f.cost } }, extra), { gang });
-      return item(id).cost > 0 ? cell(r, base, item(id).cost) : String(ti(r));
+      return item(id).cost > 0 ? cell(r, base, item(id).cost) : hits(r);
     }));
   });
   sections.goliath = table(['Fighter (credits)', 'No gear'].concat(cols.map(([id]) => {
-    const it = item(id); return `+ ${it.name} (${it.cost > 0 ? it.cost : it.cost})`; })), rows);
+    const it = item(id); return `+ ${it.name} (${it.cost})`; })), rows);
 }
 
 /* The core fighter types against every Trading Post item. */
@@ -58,12 +58,12 @@ const sections = {};
   const rows = [];
   for (const [name, p] of types) {
     const base = rate(p, {}, { gang: null });
-    rows.push([`${name} (T${p.T} W${p.W} ${p.sv}+)`, String(ti(base)), '–', '–']);
+    rows.push([`${name} (T${p.T} W${p.W} ${p.sv}+)`, hits(base), '–', '–']);
     const r = base.gear.filter(g => g.cost > 0 && g.kind === 'wargear' && g.availability !== 'unavailable')
-      .sort((a, b) => a.tiWith - b.tiWith);
-    for (const g of r) rows.push([`${name} + ${g.name.toLowerCase()}`, String(Math.round(g.tiWith)), String(g.cost), String(Math.round(g.dTp100))]);
+      .sort((a, b) => a.hitsWith - b.hitsWith);
+    for (const g of r) rows.push([`${name} + ${g.name.toLowerCase()}`, g.hitsWith.toFixed(2), String(g.cost), g.dHitsPer100.toFixed(2)]);
   }
-  sections.prototype = table(['Target', 'TI', 'Gear cost (credits)', 'ΔTI per 100 credits'], rows);
+  sections.prototype = table(['Target', 'Hits to Down', 'Gear cost (credits)', 'ΔHits per 100 credits'], rows);
 }
 
 /* Matchup matrix for the Augmek. */
@@ -71,9 +71,9 @@ const sections = {};
   const r = rate({ T: 3, W: 2, sv: 5 }, {}, { gang: 'vanSaar', mode: 'campaign' });
   const roles = ['leaderKiller', 'special', 'template', 'throwaway', 'melee'];
   const pctOf = (x) => (x > 0 ? '+' : '') + Math.round(x * 100) + '%';
-  const rows = r.gear.filter(g => g.cost > 0 && g.kind === 'wargear' && g.dTi > 0.05).sort((a, b) => a.breakEven - b.breakEven).map(g =>
+  const rows = r.gear.filter(g => g.cost > 0 && g.kind === 'wargear' && g.dHits > 0.005).sort((a, b) => a.breakEven - b.breakEven).map(g =>
     [`${g.name} (${g.cost})`].concat(roles.map(k => pctOf(g.byRole[k]))).concat([g.ratio.toFixed(2), String(Math.round(g.breakEven))]));
-  sections.matchup = table(['Item (credits)', 'Melta', 'Plasma', 'Hand flamer', 'Las / stub', 'Melee', 'TI ×', 'Break-even C* (credits)'], rows);
+  sections.matchup = table(['Item (credits)', 'Melta', 'Plasma', 'Hand flamer', 'Las / stub', 'Melee', 'Hits ×', 'Break-even C* (credits)'], rows);
 }
 
 /* Cover. */
@@ -86,17 +86,18 @@ const sections = {};
       return `${g.ratio.toFixed(2)} / ${g.breakEven == null ? '–' : Math.round(g.breakEven)}`;
     }));
   });
-  sections.cover = table(['Champion, ranged cover bonus'].concat(ids.map(id => `${item(id).name} (${item(id).cost}): TI × / C*`)), rows);
+  sections.cover = table(['Champion, ranged cover bonus'].concat(ids.map(id => `${item(id).name} (${item(id).cost}): hits × / C*`)), rows);
 }
 
-/* Hits to Down for the reference fighters. */
+/* Hits to Down for the reference fighters, per weapon and from the mix. */
 {
   const fighters = [['Ganger', { T: 3, W: 1, sv: 6 }], ['Champion', { T: 3, W: 2, sv: 5 }], ['Leader', { T: 3, W: 3, sv: 5 }],
     ['Goliath champion', { T: 4, W: 2, sv: 5 }], ['Brute', { T: 4, W: 4, sv: 4 }]];
-  const first = rate(fighters[0][1], {}, { gang: null });
-  const rows = first.perProfile.map((p, i) => [p.name, (p.weight * 100).toFixed(0) + '%'].concat(
-    fighters.map(([, prof]) => rate(prof, {}, { gang: null }).perProfile[i].hits.toFixed(2))));
-  sections.hits = table(['Weapon', 'Weight'].concat(fighters.map(([n]) => n)), rows);
+  const results = fighters.map(([, prof]) => rate(prof, {}, { gang: null }));
+  const rows = results[0].perProfile.map((p, i) => [p.name, p.cost, (p.weight * 100).toFixed(0) + '%'].concat(
+    results.map(r => r.perProfile[i].hits.toFixed(2))));
+  rows.push(['**Enemy mix (headline)**', '', '100%'].concat(results.map(r => `**${hits(r)}**`)));
+  sections.hits = table(['Weapon', 'Cost', 'Share of hits'].concat(fighters.map(([n]) => n)), rows);
 }
 
 const stamp = `Generated by \`node analyse.mjs\` from the module in \`index.html\` (pool ${T.POOL_VERSION}).`;
