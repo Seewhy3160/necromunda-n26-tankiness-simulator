@@ -1,0 +1,1649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Necromunda (N26) Tankiness Simulator</title>
+<meta name="description" content="Offline exact-probability tankiness rating for Necromunda fighters: hits to Down against a fixed reference attack pool, raw and per credit.">
+<style>
+:root{
+  --bg:#12131a; --panel:#1b1d27; --panel-2:#232635; --line:#333749;
+  --ink:#e9eaf2; --ink-dim:#a0a4bb; --ink-faint:#71768f;
+  --accent:#e0a458; --accent-ink:#1a1206;
+  --ooa:#e0574a; --serious:#e0a458; --flesh:#6fb3d8; --ok:#4f9d69;
+  --radius:10px; --gap:12px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:16px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:0 0 64px;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:860px;margin:0 auto;padding:0 14px}
+header{padding:18px 0 10px}
+h1{font-size:19px;margin:0 0 3px;letter-spacing:.2px}
+.sub{color:var(--ink-faint);font-size:13px;margin:0}
+
+/* results */
+.results{
+  position:sticky;top:0;z-index:5;background:var(--bg);
+  padding:8px 0 10px;margin:0 0 4px;
+}
+.odds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.odd{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:11px 8px;
+  text-align:center;display:flex;flex-direction:column;justify-content:space-between}
+.odd .v{font:700 25px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.5px}
+.odd .k{font-size:11px;color:var(--ink-dim);margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
+.odd.ti .v{color:var(--accent)} .odd.tp .v{color:var(--flesh)} .odd.cr .v{color:var(--ink)}
+.minor{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:9px;font-size:12.5px;color:var(--ink-dim)}
+.minor b{color:var(--ink);font-weight:600;font-family:ui-monospace,Menlo,monospace}
+.warn,.info{margin-top:9px;font-size:12.5px;border-radius:8px;padding:8px 10px}
+.warn{color:var(--accent);background:rgba(224,164,88,.09);border:1px solid rgba(224,164,88,.32)}
+.info{color:var(--ink-dim);background:var(--panel);border:1px solid var(--line)}
+.warn p,.info p{margin:0 0 4px} .warn p:last-child,.info p:last-child{margin:0}
+.info b{color:var(--ink)}
+.profile{grid-column:1/-1;margin:2px 0 0;font-size:12.5px;color:var(--ink-dim);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.5}
+.profile b{color:var(--ink);font-family:inherit}
+
+/* form */
+fieldset{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);margin:0 0 var(--gap);padding:6px 12px 12px;min-width:0}
+legend{font:600 12px/1 inherit;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12px;color:var(--ink-dim)}
+.f select,.f input[type=number]{
+  appearance:none;width:100%;background:var(--panel-2);color:var(--ink);
+  border:1px solid var(--line);border-radius:8px;padding:10px 26px 10px 10px;font:15px/1.2 inherit;
+}
+.f select{
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23a0a4bb'/></svg>");
+  background-repeat:no-repeat;background-position:right 9px center;
+}
+.f input[type=number]{padding-right:10px;-moz-appearance:textfield}
+.f input[type=number]::-webkit-outer-spin-button,.f input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.f select:focus-visible,.f input:focus-visible,.chk:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.f.wide{grid-column:1/-1}
+.chks{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.chk{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:20px;padding:8px 13px 8px 10px;font-size:13.5px;cursor:pointer;color:var(--ink-dim)}
+.chk input{accent-color:var(--accent);margin:0;width:16px;height:16px}
+.chk:has(input:checked){border-color:var(--accent);color:var(--ink)}
+.chk .cost{color:var(--accent);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+.chk .avail{font-size:11px;color:var(--ink-faint)} .chk .avail:empty{display:none}
+.chk.unavail{border-style:dashed;opacity:.65}
+.chk.unavail:has(input:checked){opacity:1;border-color:var(--ooa)}
+.subhead{grid-column:1/-1;font-size:12px;color:var(--ink-faint);margin:6px 0 -4px}
+.subhead:first-child{margin-top:2px}
+
+/* tables */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--ink-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+tr.on td:first-child::before{content:"\25CF  ";color:var(--accent)}
+tr.unavail td{color:var(--ink-faint)}
+tr.unavail td:first-child::after{content:" (not available)";font-size:11px}
+.pos{color:var(--ok)} .neg{color:var(--ooa)} .zero{color:var(--ink-faint)}
+tbody tr:last-child td{border-bottom:0}
+.legendrow{font-size:12px;color:var(--ink-faint);margin:8px 0 0}
+
+details{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);margin:0 0 var(--gap);padding:0}
+details>summary{padding:12px;font:600 13px/1 inherit;color:var(--ink-dim);cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"\25B8 ";color:var(--accent)}
+details[open]>summary::before{content:"\25BE "}
+details .body{padding:0 12px 12px}
+details p{margin:0 0 8px;font-size:13px;color:var(--ink-dim)}
+details code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+.note{font-size:12px;color:var(--ink-faint);margin:6px 0 0}
+.hidden{display:none !important}
+footer{color:var(--ink-faint);font-size:12px;text-align:center;padding:22px 14px 0;line-height:1.6}
+footer a{color:var(--ink-dim)}
+@media (max-width:380px){ .odd .v{font-size:21px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Necromunda (N26) Tankiness Simulator</h1>
+  <p class="sub">How many hits it takes to put one fighter Down, against a fixed pool of common weapons, and what each credit of defensive gear buys. No dice are rolled.</p>
+</header>
+
+<section id="panel"></section>
+
+<footer>
+  Unofficial fan-made tool. Necromunda is a trademark of Games Workshop Ltd.<br>
+  Works offline &mdash; no network, no storage, no accounts. Sibling of the
+  <a href="https://github.com/Seewhy3160/necromunda-n26-attack-simulator">N26 Attack Simulator</a>, whose engine it reuses.
+</footer>
+</div>
+
+<script id="engine">
+/* ==========================================================================
+   ENGINE — exact probabilities, no sampling.
+   Pure functions, no DOM access. Page references are to the N26 core rules.
+   ========================================================================== */
+const Engine = (function () {
+  'use strict';
+
+  /* Target condition ladder (p77). A model on 0 Wounds is automatically
+     Injured; Serious Injury and Out of Action escalate from there. */
+  const NONE = 0, INJURED = 1, SERIOUS = 2, OOA = 3;
+
+  /* A target state packs into one integer: wounds, condition, webbed, blind.
+     Webbed (p165) and Blind (p162) never affect later damage maths, but they
+     are outcomes worth reporting, so they ride along as flags. */
+  const enc = (w, cond, web, blind) => (((w << 2) | cond) << 2) | (web ? 2 : 0) | (blind ? 1 : 0);
+  const dec = (id) => ({ w: id >> 4, cond: (id >> 2) & 3, web: !!(id & 2), blind: !!(id & 1) });
+
+  function addTo(map, id, p) {
+    if (p > 0) map.set(id, (map.get(id) || 0) + p);
+  }
+
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+  /* ---- Wound roll (p76) ------------------------------------------------ */
+  function woundTarget(S, T) {
+    if (S >= 2 * T) return 2;   // Str twice T or greater
+    if (S > T) return 3;        // Str greater than T
+    if (S === T) return 4;      // Str equal to T
+    if (2 * S <= T) return 6;   // Str half T or lower
+    return 5;                   // Str lower than T
+  }
+
+  /* ---- Save roll (p76) -------------------------------------------------
+     Only one save per hit, so the model takes whichever is better. AP, cover
+     and characteristic bumps all fold into `mods` (positive = better save).
+     Invulnerable saves ignore modifiers. A natural 1 or 2 always fails. */
+  function saveProb(sv, mods, inv, allowArmour) {
+    let best = 0;
+    if (allowArmour && sv) {
+      const need = Math.max(3, sv - mods);
+      if (need <= 6) best = Math.max(best, (7 - need) / 6);
+    }
+    if (inv) {
+      const need = Math.max(3, inv);
+      if (need <= 6) best = Math.max(best, (7 - need) / 6);
+    }
+    return best;
+  }
+
+  /* ---- Injury dice (p77) -----------------------------------------------
+     Per the dice symbols chart, the Injury dice reads 1-2 Flesh Wound,
+     3-5 Seriously Injured, 6 Out of Action.
+
+     The attacker rolls Lethality dice and selects one, so they take the best
+     available result: Out of Action, else Serious Injury, else Injured.
+     Lethality 0 means no dice — the target is simply Injured at 0 Wounds. */
+  const INJURY_DICE = { ooa: 1, si: 3, inj: 2 };
+  function injuryPick(L, faces) {
+    if (L <= 0) return { ooa: 0, si: 0, inj: 1 };
+    const notOoa = Math.pow((faces.si + faces.inj) / 6, L);
+    const onlyInj = Math.pow(faces.inj / 6, L);
+    return { ooa: 1 - notOoa, si: notOoa - onlyInj, inj: onlyInj };
+  }
+
+  /* An unsaved wound costs the target `damage` Wounds (Damage (X), p162). */
+  function applyDamage(id, damage, L, faces, out, p) {
+    const s = dec(id);
+    const nw = Math.max(0, s.w - damage);
+    if (nw > 0) { addTo(out, enc(nw, s.cond, s.web, s.blind), p); return; }
+    const pick = injuryPick(L, faces);
+    addTo(out, enc(0, OOA, s.web, s.blind), p * pick.ooa);
+    // 'Serious Injury' has no effect on a model that is already Seriously Injured.
+    addTo(out, enc(0, Math.max(s.cond, SERIOUS), s.web, s.blind), p * pick.si);
+    addTo(out, enc(0, Math.max(s.cond, INJURED), s.web, s.blind), p * pick.inj);
+  }
+
+  /* ---- One hit, from wound roll to injury dice --------------------------
+     Returns a list of weighted effects. Effects are independent of the
+     target's current state, so this is computed once and reused. */
+  function hitEffects(ctx, autoWound) {
+    const w = ctx.weapon, t = ctx.target, eff = [];
+
+    // Flash (p162): no wound roll at all, just an Initiative check.
+    if (w.flash) {
+      const pBlind = clamp01((6 - t.initiative) / 6);
+      eff.push({ p: pBlind, wounded: false, blind: true });
+      eff.push({ p: 1 - pBlind, wounded: false });
+      return eff;
+    }
+
+    // Graviton Pulse (p163): Strength check instead of a wound roll, no armour save.
+    if (w.graviton) {
+      const pFail = clamp01((6 - t.strength) / 6);
+      const pSave = saveProb(0, 0, t.inv, false);
+      eff.push({ p: pFail * (1 - pSave), wounded: true, damage: w.damage, L: w.lethality });
+      eff.push({ p: pFail * pSave, wounded: false });
+      eff.push({ p: 1 - pFail, wounded: false });
+      return eff;
+    }
+
+    // Shock (p164) counts as a natural 6 on the wound roll for other traits.
+    const rolls = autoWound ? [{ face: 6, p: 1 }] : [1, 2, 3, 4, 5, 6].map(f => ({ face: f, p: 1 / 6 }));
+
+    for (const r of rolls) {
+      const wounds = autoWound || r.face >= ctx.woundTarget;
+      // Blaze (p162) triggers off the wound roll even if the hit failed to wound.
+      const blaze = w.blaze > 0 && r.face >= w.blaze;
+      if (!wounds) { eff.push({ p: r.p, wounded: false, blaze: blaze }); continue; }
+
+      const rending   = w.rending   > 0 && r.face >= w.rending;    // AP improved by 1
+      const shred     = w.shred     > 0 && r.face >= w.shred;      // Lethality +1
+      const breaching = w.breaching > 0 && r.face >= w.breaching;  // no armour saves
+
+      const allowArmour = !w.gas && !w.web && !breaching;
+      let inv = t.inv;
+      if (w.gas && t.respirator) inv = inv ? Math.min(inv, 5) : 5;  // respirator, p163
+      const pSave = saveProb(t.sv, w.ap + (rending ? -1 : 0) + t.saveMods, inv, allowArmour);
+
+      if (w.web) {  // Web (p165): the target is Webbed instead of losing a Wound.
+        eff.push({ p: r.p * (1 - pSave), wounded: false, web: true, blaze: blaze });
+      } else {
+        eff.push({ p: r.p * (1 - pSave), wounded: true, damage: w.damage,
+                   L: w.lethality + (shred ? 1 : 0), blaze: blaze });
+      }
+      eff.push({ p: r.p * pSave, wounded: false, blaze: blaze });
+    }
+    return eff;
+  }
+
+  /* Push a whole state distribution through one hit. */
+  function applyHit(dist, ctx, effects, allowBlaze) {
+    const out = new Map();
+    for (const [id, p0] of dist) {
+      if (((id >> 2) & 3) === OOA) { addTo(out, id, p0); continue; }  // already gone
+      const s = dec(id);
+      for (const e of effects) {
+        const p = p0 * e.p;
+        if (p <= 0) continue;
+        let sub;
+        if (e.wounded) {
+          sub = new Map();
+          applyDamage(id, e.damage, e.L, ctx.faces, sub, 1);
+        } else {
+          sub = new Map([[enc(s.w, s.cond, s.web || !!e.web, s.blind || !!e.blind), 1]]);
+        }
+        // Blaze: one additional hit with the same profile, which cannot chain.
+        if (e.blaze && allowBlaze) sub = applyHit(sub, ctx, ctx.effects, false);
+        for (const [k, q] of sub) addTo(out, k, p * q);
+      }
+    }
+    return out;
+  }
+
+  /* ---- Firepower dice (p72) --------------------------------------------
+     A D6 marked, per the dice symbols chart: 1 = one hit plus the ammo
+     symbol, 2-3 = one hit, 4-5 = two hits, 6 = three hits. Hits equal the
+     total bullet holes across the dice rolled. */
+  function firepowerDist(n) {
+    let dist = new Map([[0, 1]]);
+    for (let i = 0; i < n; i++) {
+      const next = new Map();
+      for (const [total, p] of dist) {
+        addTo(next, total + 1, p * 3 / 6);   // faces 1, 2, 3
+        addTo(next, total + 2, p * 2 / 6);   // faces 4, 5
+        addTo(next, total + 3, p * 1 / 6);   // face 6
+      }
+      dist = next;
+    }
+    return dist;
+  }
+
+  /* ---- Blast scatter (p162) ---------------------------------------------
+     A Blast marker that misses scatters D6" in the direction of the Scatter
+     dice, which reads 1-4 Arrow and 5-6 Hit (with arrow). A Hit symbol
+     alongside a 1 is a misfire and centres the marker on the firer instead.
+
+     A 3" or 5" marker that moves only 1" or 2" still covers the model it was
+     aimed at, so those distances are counted as hits on the target. */
+  const SCATTER_MISFIRE = (2 / 6) * (1 / 6);                 // crosshair face plus a 1
+  const SCATTER_COVERS = (1 / 6) * (4 / 6) + (1 / 6);        // 1" by arrow, or 2" any face
+
+  /* Hit roll (p72 / p74). Natural 1 always misses, natural 6 always hits. */
+  const isHit = (face, skill, mod) => face === 6 || (face !== 1 && face + mod >= skill);
+
+  /* ---- Context assembly ------------------------------------------------ */
+  function startState(t) {
+    if (t.status === 'seriously') return enc(0, SERIOUS, false, false);
+    if (t.status === 'injured') return enc(0, INJURED, false, false);
+    return enc(t.W, NONE, false, false);
+  }
+
+  function buildCtx(input) {
+    const w = input.weapon, t = input.target;
+    const problems = [];
+
+    let wt;
+    if (w.toxin > 0) {
+      wt = w.toxin;   // Toxin (p165): wounds on X+, whatever the Toughness
+    } else if (w.str === null) {
+      wt = 7;  // Strength '-' with no trait to resolve it: the hit does nothing.
+      problems.push('This profile has no Strength and no trait that replaces the wound roll, so no wound is possible. Set a Strength, or pick Toxin / Graviton Pulse / Flash / Web.');
+    } else {
+      wt = woundTarget(w.str, t.T);
+    }
+
+    const ctx = {
+      weapon: w, target: t, faces: input.faces, woundTarget: wt,
+      problems: problems
+    };
+    ctx.effects = hitEffects(ctx, false);
+    ctx.shockEffects = hitEffects(ctx, true);
+    return ctx;
+  }
+
+  /* ---- Ranged attack (p72) ---------------------------------------------
+     One hit roll for the whole attack; Rapid Fire turns that single success
+     into several hits, all of which share the hit roll's trait triggers. */
+  function computeRanged(input) {
+    const ctx = buildCtx(input);
+    const w = input.weapon, t = input.target;
+    const start = startState(t);
+    const fp = firepowerDist(w.rapidFire > 0 ? w.rapidFire : 0);
+    const singleHit = new Map([[1, 1]]);
+    const hitCounts = w.rapidFire > 0 ? fp : singleHit;
+
+    // -1 to hit a Seriously Injured target (p72).
+    const mod = input.hitMod + (t.status === 'seriously' ? -1 : 0);
+
+    const branches = w.autoHit
+      ? [{ p: 1, hit: true, shock: false }]
+      : [1, 2, 3, 4, 5, 6].map(f => ({
+          p: 1 / 6,
+          hit: isHit(f, input.skill, mod),
+          shock: w.shock > 0 && f >= w.shock
+        }));
+
+    const out = new Map();
+    const resolveHits = (effects, weight) => {
+      if (weight <= 0) return;
+      for (const [n, pn] of hitCounts) {
+        let dist = new Map([[start, 1]]);
+        for (let i = 0; i < n; i++) dist = applyHit(dist, ctx, effects, true);
+        for (const [k, q] of dist) addTo(out, k, weight * pn * q);
+      }
+    };
+
+    let pDirect = 0, pScatterHit = 0, pMisfire = 0;
+    for (const b of branches) {
+      if (b.hit) {
+        pDirect += b.p;
+        resolveHits(b.shock ? ctx.shockEffects : ctx.effects, b.p);
+      } else if (w.blast) {
+        // A scattered marker may still cover the target. It came off a failed
+        // hit roll, so Shock (X+), which keys off that roll, cannot trigger.
+        pScatterHit += b.p * SCATTER_COVERS;
+        pMisfire += b.p * SCATTER_MISFIRE;
+        resolveHits(ctx.effects, b.p * SCATTER_COVERS);
+        addTo(out, start, b.p * (1 - SCATTER_COVERS));
+      } else {
+        addTo(out, start, b.p);
+      }
+    }
+
+    let expectedHits = 0;
+    for (const [n, pn] of hitCounts) expectedHits += n * pn;
+    const pHit = pDirect + pScatterHit;
+    return summarise(out, start, { ctx: ctx, pHit: pHit, expectedHits: pHit * expectedHits,
+                                   pScatterHit: pScatterHit, pMisfire: pMisfire });
+  }
+
+  /* ---- Melee attack (p74) ----------------------------------------------
+     Every Attack dice is its own Weapon Skill test, and hits are resolved
+     in sequence, so the target's state carries from one attack to the next. */
+  function computeMelee(input) {
+    const start = startState(input.target);
+    let dist = new Map([[start, 1]]);
+    let pAnyHit = 0, expectedHits = 0;
+    const problems = [];
+    let firstCtx = null;
+
+    for (const weaponInput of input.weapons) {
+      const ctx = buildCtx({ weapon: weaponInput.weapon, target: input.target, faces: input.faces });
+      if (!firstCtx) firstCtx = ctx;
+      for (const p of ctx.problems) if (problems.indexOf(p) < 0) problems.push(p);
+      const w = weaponInput.weapon;
+      let pMissAll = 1;
+      for (let a = 0; a < weaponInput.attacks; a++) {
+        if (w.autoHit) {
+          dist = applyHit(dist, ctx, ctx.effects, true);
+          pMissAll = 0; expectedHits += 1;
+          continue;
+        }
+        const out = new Map();
+        let pThis = 0;
+        for (let f = 1; f <= 6; f++) {
+          const p = 1 / 6;
+          if (!isHit(f, weaponInput.skill, weaponInput.hitMod)) {
+            for (const [k, q] of dist) addTo(out, k, p * q);
+            continue;
+          }
+          pThis += p;
+          const effects = (w.shock > 0 && f >= w.shock) ? ctx.shockEffects : ctx.effects;
+          const sub = applyHit(dist, ctx, effects, true);
+          for (const [k, q] of sub) addTo(out, k, p * q);
+        }
+        pMissAll *= (1 - pThis);
+        expectedHits += pThis;
+        dist = out;
+      }
+      pAnyHit = 1 - (1 - pAnyHit) * pMissAll;
+    }
+
+    firstCtx.problems = problems;
+    return summarise(dist, start, { ctx: firstCtx, pHit: pAnyHit, expectedHits: expectedHits });
+  }
+
+  /* ---- Reporting -------------------------------------------------------- */
+  function summarise(dist, startId, extra) {
+    const s0 = dec(startId);
+    const r = { fleshWound: 0, serious: 0, outOfAction: 0, wounded: 0, unharmed: 0,
+                webbed: 0, blinded: 0, expectedWoundsLost: 0, total: 0 };
+    for (const [id, p] of dist) {
+      const s = dec(id);
+      r.total += p;
+      if (s.web) r.webbed += p;
+      if (s.blind) r.blinded += p;
+      r.expectedWoundsLost += (s0.w - s.w) * p;
+      if (s.cond === OOA) r.outOfAction += p;
+      else if (s.cond === SERIOUS) r.serious += p;
+      else if (s.cond === INJURED) r.fleshWound += p;
+      else if (s.w < s0.w) r.wounded += p;
+      else r.unharmed += p;
+    }
+    r.changed = 1 - probOf(dist, startId);
+    r.pHit = extra.pHit;
+    r.expectedHits = extra.expectedHits;
+    r.scatterHit = extra.pScatterHit || 0;
+    r.misfire = extra.pMisfire || 0;
+    r.problems = extra.ctx.problems;
+    r.woundTarget = extra.ctx.woundTarget;
+    r.perHit = perHitBreakdown(extra.ctx);
+    r.startsInjured = s0.cond >= INJURED;
+    r.startCond = s0.cond;
+    return r;
+  }
+
+  function probOf(dist, id) { return dist.get(id) || 0; }
+
+  /* Chance that a single hit wounds, and that a wound goes unsaved. */
+  function perHitBreakdown(ctx) {
+    let pWound = 0, pUnsaved = 0;
+    for (const e of ctx.effects) {
+      if (e.wounded || e.web) pUnsaved += e.p;
+    }
+    if (ctx.weapon.flash) return { pWound: 0, pUnsaved: 0 };
+    if (ctx.weapon.graviton) {
+      pWound = Math.max(0, Math.min(1, (6 - ctx.target.strength) / 6));
+      return { pWound: pWound, pUnsaved: pUnsaved };
+    }
+    pWound = ctx.woundTarget > 6 ? 0 : (7 - ctx.woundTarget) / 6;
+    return { pWound: pWound, pUnsaved: pUnsaved };
+  }
+
+  return {
+    computeRanged: computeRanged, computeMelee: computeMelee,
+    woundTarget: woundTarget, saveProb: saveProb, injuryPick: injuryPick,
+    firepowerDist: firepowerDist, isHit: isHit, INJURY_DICE: INJURY_DICE,
+    SCATTER_COVERS: SCATTER_COVERS, SCATTER_MISFIRE: SCATTER_MISFIRE,
+    COND: { NONE: NONE, INJURED: INJURED, SERIOUS: SERIOUS, OOA: OOA }
+  };
+})();
+if (typeof module !== 'undefined') module.exports = Engine;
+</script>
+
+<script id="data">
+/* ==========================================================================
+   DATA — Trading Post profiles (p154-157) and the one worked fighter profile
+   printed in the core rules (p50). Picking one of these only fills the
+   dropdowns in; every field stays editable afterwards.
+   ========================================================================== */
+const Data = (function () {
+  'use strict';
+
+  /* Traits are kept as the book prints them and parsed into engine flags, so
+     the table below can be checked against p154-157 line by line. */
+  function parseTraits(str) {
+    const t = {
+      rapidFire: 0, toxin: 0, rending: 0, shred: 0, breaching: 0, shock: 0, blaze: 0,
+      damage: 1, paired: 0, gas: false, web: false, flash: false, graviton: false,
+      autoHit: false, light: false, melee: false, unwieldy: false, parry: false,
+      unstable: false, heavy: false, blast: false, smoke: false
+    };
+    if (!str) return t;
+    const num = (re) => { const m = str.match(re); return m ? parseInt(m[1], 10) : 0; };
+    t.rapidFire = num(/Rapid Fire \((\d)\)/);
+    t.toxin     = num(/Toxin \((\d)\+\)/);
+    t.rending   = num(/Rending \((\d)\+\)/);
+    t.shred     = num(/Shred \((\d)\+\)/);
+    t.breaching = num(/Breaching \((\d)\+\)/);
+    t.shock     = num(/Shock \((\d)\+\)/);
+    t.blaze     = num(/Blaze \((\d)\+\)/);
+    t.paired    = num(/Paired \((\d)\)/);
+    t.damage    = num(/Damage \((\d)\)/) || 1;
+    t.gas       = /\bGas\b/.test(str);
+    t.web       = /\bWeb\b/.test(str);
+    t.flash     = /\bFlash\b/.test(str);
+    t.graviton  = /Graviton Pulse/.test(str);
+    t.autoHit   = /\bTemplate\b/.test(str);   // Template weapons hit automatically (p165)
+    t.light     = /\bLight\b/.test(str);
+    t.melee     = /\bMelee\b/.test(str);
+    t.unwieldy  = /\bUnwieldy\b/.test(str);
+    t.parry     = /\bParry\b/.test(str);
+    t.unstable  = /\bUnstable\b/.test(str);
+    t.heavy     = /\bHeavy\b/.test(str);
+    t.blast     = /\bBlast\b/.test(str);
+    t.smoke     = /\bSmoke\b/.test(str);
+    return t;
+  }
+
+  /* [name, category, short range, long range, Str, AP, Lethality, traits]
+     Str: a number, 'S'/'S+1'/'S+2'/'S+3' for the wielder's Strength, or null.
+     Lethality: null where the book prints '-' and traits resolve the hit. */
+  const RANGED = [
+    ['Autogun',              'Auto & stub', '8"', '24"',  3,  0, 1, 'Rapid Fire (1)'],
+    ['Autopistol',           'Auto & stub', '4"', '12"',  3,  0, 1, 'Light, Rapid Fire (1)'],
+    ['Heavy stubber',        'Auto & stub', '20"','40"',  4, -1, 1, 'Heavy, Rapid Fire (2)'],
+    ['Long rifle',           'Auto & stub', '24"','48"',  4, -1, 1, 'Knockback (6+)'],
+    ['Stub gun',             'Auto & stub', '6"', '12"',  3,  0, 1, 'Light'],
+    ['Boltgun',              'Bolt',        '12"','24"',  4, -1, 2, 'Ammo (3+), Rapid Fire (1)'],
+    ['Bolt pistol',          'Bolt',        '6"', '12"',  4, -1, 2, 'Ammo (3+), Light, Rapid Fire (1)'],
+    ['Heavy bolter',         'Bolt',        '18"','36"',  5, -2, 2, 'Ammo (3+), Heavy, Rapid Fire (2)'],
+    ['Warpstorm bolter',     'Bolt',        '12"','24"',  4, -1, 2, 'Ammo (6+), Cursed, Rapid Fire (1), Scarce (4+)'],
+    ['Flamer',               'Flamer',      'T',  '-',    4, -1, 1, 'Ammo (6+), Blaze (5+), Template'],
+    ['Hand flamer',          'Flamer',      'T',  '-',    3,  0, 1, 'Ammo (6+), Blaze (5+), Light, Template'],
+    ['Heavy flamer',         'Flamer',      'T',  '-',    5, -2, 1, 'Ammo (6+), Blaze (5+), Template'],
+    ['Grav gun',             'Grav',        '9"', '18"',  null, 0, 2, 'Ammo (5+), Blast (3"), Graviton Pulse'],
+    ['Grav pistol',          'Grav',        '4"', '9"',   null, 0, 2, 'Ammo (5+), Blast (3"), Graviton Pulse'],
+    ['Grenade launcher - frag',          'Grenade launcher', '6"', '24"', 3,  0, 1, 'Ammo (4+), Blast (3"), Knockback (5+)'],
+    ['Grenade launcher - krak',          'Grenade launcher', '6"', '24"', 6, -2, 1, 'Ammo (4+)'],
+    ['Grenade launcher - photon flash',  'Grenade launcher', '6"', '24"', null, 0, null, 'Ammo (5+), Blast (3"), Flash'],
+    ['Grenade launcher - smoke',         'Grenade launcher', '6"', '24"', null, 0, null, 'Ammo (4+), Blast (3"), Smoke'],
+    ['Lasgun',               'Las',         '16"','24"',  3,  0, 1, ''],
+    ['Laspistol',            'Las',         '8"', '12"',  3,  0, 1, 'Light'],
+    ['Long las',             'Las',         '18"','36"',  4,  0, 1, ''],
+    ['Meltagun',             'Melta',       '6"', '12"',  8, -4, 3, 'Ammo (6+), Damage (3)'],
+    ['Multi-melta',          'Melta',       '12"','24"',  8, -4, 3, 'Ammo (6+), Damage (3), Heavy'],
+    ['Plasma cannon',        'Plasma',      '18"','36"',  6, -2, 2, 'Ammo (6+), Blast (3"), Damage (2), Heavy, Unstable'],
+    ['Plasma gun',           'Plasma',      '12"','24"',  5, -2, 2, 'Ammo (6+), Damage (2), Rapid Fire (1), Unstable'],
+    ['Plasma pistol',        'Plasma',      '6"', '12"',  5, -2, 2, 'Ammo (6+), Damage (2), Light, Unstable'],
+    ['Throwing knives',      'Primitive & tools', '6"', '12"', null, 0, 1, 'Ammo (3+), Toxin (4+)'],
+    ['Rad cannon',           'Primitive & tools', '16"','32"', 3, -1, 1, 'Ammo (4+), Blast (3"), Heavy, Rad-phage'],
+    ['Rad gun',              'Primitive & tools', 'T',  '-',   3, -1, 1, 'Ammo (5+), Rad-phage, Template'],
+    ['Harpoon launcher',     'Primitive & tools', '6"', '18"', 5, -3, 1, 'Ammo (5+), Drag'],
+    ['Las cutter',           'Primitive & tools', '2"', '4"',  9, -2, 2, 'Damage (2), Light, Single Shot'],
+    ['Mining laser',         'Primitive & tools', '10"','14"', 9, -3, 3, 'Ammo (5+), Damage (2), Heavy'],
+    ['Combat shotgun - salvo ammo',     'Shotgun', '4"', '12"', 4, 0, 1, 'Knockback (6+)'],
+    ['Combat shotgun - shredder ammo',  'Shotgun', 'T',  '-',   3, 0, 1, 'Ammo (6+), Rapid Fire (1), Shred (6+), Template'],
+    ['Sawn-off shotgun - scatter shot', 'Shotgun', '4"', '8"',  2, 0, 1, 'Light, Rapid Fire (2)'],
+    ['Sawn-off shotgun - solid shot',   'Shotgun', '4"', '8"',  4, 0, 1, 'Light, Knockback (6+)'],
+    ['Shotgun - scatter ammo',          'Shotgun', '4"', '8"',  3, 0, 1, 'Rapid Fire (2)'],
+    ['Shotgun - solid ammo',            'Shotgun', '8"', '16"', 4, 0, 1, 'Knockback (5+)'],
+    ['Needle pistol',        'Toxin & web', '4"', '9"',  null,  0, 1, 'Light, Toxin (3+)'],
+    ['Needle rifle',         'Toxin & web', '9"', '18"', null, -1, 1, 'Toxin (3+)'],
+    ['Web gun',              'Toxin & web', 'T',  '-',   5,  0, null, 'Ammo (6+), Template, Web'],
+    ['Web pistol',           'Toxin & web', 'T',  '-',   4,  0, null, 'Ammo (6+), Light, Template, Web'],
+    ['Blasting charges',     'Grenades', '-', '6"',  5, -1, 2, 'Ammo (5+), Blast (5"), Knockback (5+), Limited'],
+    ['Choke gas grenades',   'Grenades', '-', '9"',  null, 0, 1, 'Ammo (5+), Blast (3"), Gas, Limited, Toxin (3+)'],
+    ['Demo charges',         'Grenades', '-', '6"',  6, -3, 3, 'Ammo (6+), Blast (5"), Damage (2), Limited'],
+    ['Frag grenades',        'Grenades', '-', '9"',  3,  0, 1, 'Ammo (4+), Blast (3"), Knockback (6+), Limited'],
+    ['Incendiary charges',   'Grenades', '-', '9"',  3,  0, 1, 'Ammo (5+), Blast (5"), Blaze (5+), Limited'],
+    ['Krak grenades',        'Grenades', '-', '9"',  6, -2, 1, 'Ammo (4+), Limited'],
+    ['Phosphor canisters',   'Grenades', '-', '9"',  4, -2, 2, 'Ammo (5+), Blast (3"), Blaze (5+), Limited, Unstable'],
+    ['Photon flash grenades','Grenades', '-', '9"',  null, 0, null, 'Ammo (4+), Blast (5"), Flash, Limited'],
+    ['Plasma grenades',      'Grenades', '-', '9"',  5, -1, 2, 'Ammo (4+), Blast (3"), Damage (2), Limited, Unstable'],
+    ['Rad grenades',         'Grenades', '-', '9"',  2, -1, 1, 'Ammo (4+), Blast (3"), Limited, Rad-phage'],
+    ['Smoke grenades',       'Grenades', '-', '9"',  null, 0, null, 'Ammo (4+), Blast (3"), Limited, Smoke']
+  ];
+
+  const MELEE = [
+    ['Hand weapon',        'Unarmed',        'E', '-', 'S',    0, 1, 'Melee'],
+    ['Chainaxe',           'Chain & power',  'E', '-', 'S',   -1, 1, 'Melee, Shred (5+)'],
+    ['Chainsword',         'Chain & power',  'E', '-', 'S',    0, 1, 'Melee, Parry, Shred (5+)'],
+    ['Power axe',          'Chain & power',  'E', '-', 'S',   -3, 1, 'Breaching (5+), Melee'],
+    ['Power fist',         'Chain & power',  'E', '-', 'S+3', -3, 2, 'Breaching (6+), Concussive (5+), Damage (2), Melee, Unwieldy'],
+    ['Power hammer',       'Chain & power',  'E', '-', 'S',   -2, 2, 'Breaching (6+), Concussive (6+), Melee'],
+    ['Power knife',        'Chain & power',  'E', '-', 'S',   -2, 1, 'Backstab, Breaching (6+), Melee'],
+    ['Power maul',         'Chain & power',  'E', '-', 'S+1', -2, 1, 'Breaching (6+), Concussive (6+), Melee'],
+    ['Power sword',        'Chain & power',  'E', '-', 'S',   -2, 1, 'Breaching (6+), Melee, Parry'],
+    ['Axe',                'Primitive',      'E', '-', 'S',   -1, 1, 'Melee'],
+    ['Fighting knife',     'Primitive',      'E', '-', 'S',    0, 1, 'Backstab, Melee'],
+    ['Flail',              'Primitive',      'E', '-', 'S',    0, 1, 'Knockback (6+), Melee'],
+    ['Maul',               'Primitive',      'E', '-', 'S+1',  0, 1, 'Concussive (6+), Melee'],
+    ['Two-handed axe',     'Primitive',      'E', '-', 'S+1', -1, 2, 'Heavy, Melee, Unwieldy'],
+    ['Two-handed hammer',  'Primitive',      'E', '-', 'S+1',  0, 3, 'Concussive (6+), Heavy, Melee, Unwieldy'],
+    ['Servo-claw',         'Tools',          'E', '-', 'S+2',  0, 2, 'Melee, Unwieldy'],
+    ['Shock baton',        'Shock & toxin',  'E', '-', 'S',    0, 1, 'Melee, Parry, Shock (6+)'],
+    ['Shock stave',        'Shock & toxin',  'E', '-', 'S+1',  0, 1, 'Melee, Shock (5+)'],
+    ['Shock whip',         'Shock & toxin',  'E', '-', 'S',    0, 1, 'Knockback (6+), Melee, Shock (6+)'],
+    ['Stiletto knife',     'Shock & toxin',  'E', '-', null,   0, 1, 'Melee, Toxin (3+)'],
+    ['Stiletto sword',     'Shock & toxin',  'E', '-', null,  -1, 1, 'Melee, Parry, Toxin (3+)']
+  ];
+
+  function toProfile(row) {
+    return {
+      name: row[0], cat: row[1], sr: row[2], lr: row[3],
+      str: row[4], ap: row[5], lethality: row[6], traitText: row[7],
+      traits: parseTraits(row[7])
+    };
+  }
+
+  const ranged = RANGED.map(toProfile);
+  const melee = MELEE.map(toProfile);
+  /* Pistols keep the Light trait, so they can be swung in close combat (p74). */
+  const meleeUsable = melee.concat(ranged.filter(p => p.traits.light));
+
+  /* Fighter profiles. The core rules print exactly one full profile (p50).
+     The rest are the common fighter types, for quick setup; their Toughness,
+     Strength, Wounds and Save are the usual values, while WS, BS, Initiative
+     and Attacks vary by gang and are rounded here. */
+  const FIGHTERS = [
+    { name: 'Escher Gang Sister (core rules example, p50)', book: true,
+      ws: 4, bs: 4, S: 3, T: 3, W: 1, I: 4, A: 1, sv: 6 },
+    { name: 'Ganger', ws: 4, bs: 4, S: 3, T: 3, W: 1, I: 4, A: 1, sv: 6 },
+    { name: 'Champion', ws: 3, bs: 3, S: 3, T: 3, W: 2, I: 4, A: 2, sv: 5 },
+    { name: 'Leader', ws: 3, bs: 3, S: 3, T: 3, W: 3, I: 4, A: 2, sv: 5 },
+    { name: 'Juve', ws: 5, bs: 5, S: 3, T: 3, W: 1, I: 3, A: 1, sv: 0 },
+    { name: 'Brute', ws: 4, bs: 5, S: 5, T: 4, W: 4, I: 4, A: 2, sv: 4 }
+  ];
+
+  return { ranged: ranged, melee: meleeUsable, fighters: FIGHTERS, parseTraits: parseTraits };
+})();
+if (typeof module !== 'undefined') module.exports = Data;
+</script>
+
+<script id="tankiness">
+/* ==========================================================================
+   TANKINESS — how many hits from a fixed reference pool it takes to put a
+   fighter Down, worked out exactly, and what each credit of defensive gear
+   buys. Pure functions, no DOM access, so the loadout ranker and the Node
+   tests can load it headless.
+
+   The one-attack maths (wound table, save rule, Injury dice) comes from the
+   pinned upstream Engine; the Trading Post profiles come from the pinned
+   Data block. This module adds the target-side hooks the attack simulator
+   has no use for (Dodge, Iron Jaw, reflec shroud, hazard suit, refractor
+   burnout, bio-booster, gene-smithing) and the repeated-hit chain.
+   ========================================================================== */
+const Tankiness = (function (Engine, Data) {
+  'use strict';
+
+  const POOL_VERSION = 'v1';
+  const COND = Engine.COND;
+  const FACES = Engine.INJURY_DICE;
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  /* ---- Target state -----------------------------------------------------
+     Wounds, condition (p77) and two flags this module adds: refractor field
+     burnt out, and bio-booster used. Wounds only fall, condition only
+     worsens and flags only switch on, so repeated hits can only move a
+     fighter forward through the states, never round in a loop. */
+  const enc = (w, cond, burnt, bio) => (w << 4) | (cond << 2) | (burnt ? 2 : 0) | (bio ? 1 : 0);
+  const dec = (id) => ({ w: id >> 4, cond: (id >> 2) & 3, burnt: !!(id & 2), bio: !!(id & 1) });
+  function addTo(map, id, p) { if (p > 0) map.set(id, (map.get(id) || 0) + p); }
+
+  /* ---- Items -------------------------------------------------------------
+     Costs are Trading Post (p158-159) unless the item is a gang-list
+     exclusive. `effects` are folded into the target before any hit is
+     resolved; boolean effects switch on a hook in the hit resolver. */
+  const WARGEAR = [
+    { id: 'lightCarapace', name: 'Light carapace', cost: 100, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
+      tradingPost: true, effects: { sv: 1, I: -1 }, text: '+1 Sv, -1 Initiative' },
+    { id: 'heavyCarapace', name: 'Heavy carapace', cost: 140, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
+      tradingPost: true, effects: { sv: 2, I: -2 }, text: '+2 Sv, -2 Initiative' },
+    { id: 'meshArmour', name: 'Mesh armour', cost: 40, kind: 'wargear', group: 'armour', exclusiveGroup: 'armour',
+      tradingPost: true, effects: { meleeSave: 1 }, text: '+1 Sv in close combat only' },
+    { id: 'refractor', name: 'Refractor field', cost: 50, kind: 'wargear', group: 'field',
+      tradingPost: true, effects: { refractor: true }, text: '5+ invulnerable save; burns out on a natural 1' },
+    { id: 'reflecShroud', name: 'Reflec shroud', cost: 25, kind: 'wargear', group: 'field',
+      tradingPost: true, effects: { reflec: true }, text: 'Las, plasma and melta AP counts as -' },
+    { id: 'refractionCloak', name: 'Refraction cloak', cost: 40, kind: 'wargear', group: 'field',
+      tradingPost: false, exclusive: 'vanSaar', effects: { evasionRanged: 0.75 },
+      text: '-1 to hit by ranged attacks; rated as evasion, not TI' },
+    { id: 'hazardSuit', name: 'Hazard suit', cost: 10, kind: 'wargear', group: 'other',
+      tradingPost: true, effects: { hazardSuit: true }, text: 'Immune to Blaze' },
+    { id: 'respirator', name: 'Respirator', cost: 15, kind: 'wargear', group: 'other',
+      tradingPost: true, effects: { respirator: true }, text: '5+ invulnerable save against Gas' },
+    { id: 'bioBooster', name: 'Bio-booster', cost: 25, kind: 'wargear', group: 'other',
+      tradingPost: true, effects: { bioBooster: true },
+      text: 'First time reduced to 0 Wounds: Lethality -1; at 0, two Injury dice and the bearer picks' },
+    { id: 'servoHarnessPartial', name: 'Servo-harness (partial)', cost: 100, kind: 'wargear', group: 'other', exclusiveGroup: 'harness',
+      tradingPost: true, effects: { S: 2, T: 1 }, text: '+2 S, +1 T' },
+    { id: 'servoHarnessFull', name: 'Servo-harness (full)', cost: 130, kind: 'wargear', group: 'other', exclusiveGroup: 'harness',
+      tradingPost: true, effects: { S: 2, T: 1 }, text: '+2 S, +1 T' },
+    { id: 'hystrarShield', name: "'Hystrar' pattern energy shield", cost: 35, kind: 'wargear', group: 'weapon',
+      tradingPost: false, exclusive: 'vanSaar', slot: 'weapon', effects: { rangedSave: 1, meleeSave: 1 },
+      text: 'Shield (+1 Sv vs shooting) and Parry (+1 Sv in combat); takes a weapon slot' },
+    { id: 'parryWeapon', name: 'Parry weapon carried', cost: 0, kind: 'wargear', group: 'weapon', weapon: true,
+      effects: { meleeSave: 1 }, text: '+1 Sv in close combat; the weapon’s cost goes under weapons' },
+    { id: 'shieldWeapon', name: 'Shield weapon carried', cost: 0, kind: 'wargear', group: 'weapon', weapon: true,
+      effects: { rangedSave: 1 }, text: '+1 Sv vs shooting; the weapon’s cost goes under weapons' }
+  ];
+
+  const SKILLS = [
+    { id: 'dodge', name: 'Dodge', cost: 0, kind: 'skill', set: 'Agility', effects: { dodge: true },
+      text: 'A wound is cancelled on a 6, rolled before the save' },
+    { id: 'ironJaw', name: 'Iron Jaw', cost: 0, kind: 'skill', set: 'Brawn', effects: { ironJaw: true },
+      text: '+2 Toughness against close combat hits with AP -' }
+  ];
+
+  /* Goliath gene-smithing (House of Chains p40-41): one option, bought at
+     recruitment only. Negative costs reduce the recruitment cost. */
+  const GENE_SMITHING = [
+    { id: 'ironFlesh', name: 'Iron Flesh', cost: 30, kind: 'gene', effects: { W: 1 }, text: '+1 Wounds' },
+    { id: 'scarTissue', name: 'Scar Tissue', cost: 15, kind: 'gene', effects: { scarTissue: true },
+      text: 'Lethality of every hit -1, to a minimum of 1' },
+    { id: 'adaptiveBiology', name: 'Adaptive Biology', cost: 15, kind: 'gene', effects: { adaptiveBiology: true },
+      text: 'Toxin hits that wound must re-roll the wound dice' },
+    { id: 'reducedBoneDensity', name: 'Reduced Bone Density', cost: -10, kind: 'gene', effects: { T: -1 },
+      text: '-1 Toughness, saves 10 credits' }
+  ];
+
+  const ITEMS = WARGEAR.concat(SKILLS, GENE_SMITHING);
+  const byId = {};
+  for (const it of ITEMS) byId[it.id] = it;
+
+  /* ---- Reference attack pool ----------------------------------------------
+     Measured per hit, so each weapon counts only for its hit profile:
+     Strength, AP, Lethality and the wound-side traits. Profiles come from the
+     pinned Trading Post tables by name; the cleaver is from the Goliath list
+     (House of Chains p54). Melee attackers are Strength 3. */
+  const MELEE_ATTACKER_S = 3;
+  const REFLEC_FAMILIES = ['las', 'plasma', 'melta'];
+  const ROLES = [
+    { id: 'leaderKiller', name: 'Leader killer' },
+    { id: 'special', name: 'Leader killer + special' },
+    { id: 'template', name: 'Common template' },
+    { id: 'throwaway', name: 'Common throwaway' },
+    { id: 'melee', name: 'Melee' }
+  ];
+
+  function attackerStr(str) {
+    if (typeof str === 'number') return str;
+    if (str === null || str === undefined) return null;
+    const m = String(str).match(/^S(\+(\d))?$/);
+    return m ? MELEE_ATTACKER_S + (m[2] ? parseInt(m[2], 10) : 0) : null;
+  }
+
+  function fromData(list, name) {
+    const p = list.find(x => x.name === name);
+    if (!p) throw new Error('no Trading Post profile named ' + name);
+    return p;
+  }
+
+  function profileOf(id, name, role, family, src) {
+    const tr = src.traits;
+    return {
+      id: id, name: name, role: role, family: family, source: src.name,
+      str: attackerStr(src.str), ap: src.ap, lethality: src.lethality || 0, damage: tr.damage,
+      toxin: tr.toxin, rending: tr.rending, shred: tr.shred, breaching: tr.breaching, blaze: tr.blaze,
+      gas: tr.gas, web: tr.web, flash: tr.flash, graviton: tr.graviton,
+      template: tr.autoHit, melee: tr.melee
+    };
+  }
+
+  const CLEAVER = { name: 'Cleaver', str: 'S', ap: -1, lethality: 2,
+    traits: Data.parseTraits('Melee') };
+
+  const POOL_V1 = {
+    version: POOL_VERSION,
+    meleeStrength: MELEE_ATTACKER_S,
+    roles: ROLES,
+    profiles: [
+      profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun')),
+      profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun')),
+      profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer')),
+      profileOf('lasStub',    'Laspistol / stub gun',     'throwaway',    'las',    fromData(Data.ranged, 'Laspistol')),
+      profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife')),
+      profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword')),
+      profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword')),
+      profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER)
+    ],
+    /* Named opponent profiles: how much of the pool each role carries. */
+    weights: {
+      default:     { leaderKiller: 0.10, special: 0.30, template: 0.20, throwaway: 0.20, melee: 0.20 },
+      plasmaMelta: { leaderKiller: 0.25, special: 0.35, template: 0.10, throwaway: 0.10, melee: 0.20 },
+      meleeRush:   { leaderKiller: 0.05, special: 0.15, template: 0.10, throwaway: 0.20, melee: 0.50 },
+      volumeFire:  { leaderKiller: 0.05, special: 0.15, template: 0.30, throwaway: 0.40, melee: 0.10 }
+    }
+  };
+  const OPPONENTS = [
+    { id: 'default', name: 'Default mix' },
+    { id: 'plasmaMelta', name: 'Plasma / melta heavy' },
+    { id: 'meleeRush', name: 'Melee rush' },
+    { id: 'volumeFire', name: 'Volume fire' }
+  ];
+
+  /* A role's weight is split evenly across the profiles in it. */
+  function poolWeights(pool, opponent) {
+    const roleW = typeof opponent === 'string' ? pool.weights[opponent] : opponent;
+    if (!roleW) throw new Error('unknown opponent profile ' + opponent);
+    const count = {};
+    for (const p of pool.profiles) count[p.role] = (count[p.role] || 0) + 1;
+    return pool.profiles.map(p => (roleW[p.role] || 0) / count[p.role]);
+  }
+
+  /* ---- Gangs and Equipment Lists ---------------------------------------------
+     At creation a fighter buys only from its own entry's Equipment List; the
+     Trading Post opens in the campaign's Post-cycle Sequence. Van Saar is the
+     default reference gang (Gang List pp72-78) and Goliath (House of Chains)
+     the tough one. Strength and Initiative feed only Graviton Pulse and Flash,
+     neither of which is in the v1 pool; where a list did not print them they
+     are the common values and every field stays editable. */
+  const EQUIPMENT_LISTS = {
+    vanSaar: { name: 'House Van Saar', items: {
+      refractor: {}, meshArmour: {}, hystrarShield: {}, bioBooster: {}, respirator: {},
+      lightCarapace: { only: 'Gunner' }, refractionCloak: { only: 'Sniper' } } },
+    goliath: { name: 'House Goliath', items: { meshArmour: {}, refractor: {}, respirator: {} } },
+    furnaceBrutes: { name: 'Furnace Brutes', items: { meshArmour: {}, refractor: {}, respirator: {} } },
+    unborn: { name: 'Unborn', items: { meshArmour: {}, refractor: {}, respirator: {} } }
+  };
+
+  const VS = (id, name, type, cost, T, W, sv, extra) => Object.assign(
+    { id: id, name: name, type: type, cost: cost, T: T, W: W, sv: sv, S: 3, I: 4, equipmentList: 'vanSaar' }, extra || {});
+  const GO = (id, name, type, cost, T, W, sv, S, I, list, extra) => Object.assign(
+    { id: id, name: name, type: type, cost: cost, T: T, W: W, sv: sv, S: S, I: I, equipmentList: list }, extra || {});
+
+  const GANGS = {
+    vanSaar: { id: 'vanSaar', name: 'House Van Saar', equipmentList: 'vanSaar', tradingPostAtCreation: false, geneSmithing: false,
+      fighters: [
+        VS('vsPrime', 'Prime', 'Leader', 115, 3, 3, 5),
+        VS('vsAugmek', 'Augmek', 'Champion', 95, 3, 2, 5),
+        VS('vsArcheotek', 'Archeotek', 'Champion, Loner', 85, 3, 2, 4, { I: 2 }),
+        VS('vsNeotek', 'Neotek', 'Prospect (with Grav Cutter)', 65, 3, 1, 6),
+        VS('vsTek', 'Tek', 'Ganger, Specialist', 30, 3, 1, 6),
+        VS('vsSubtek', 'Subtek', 'Prospect', 20, 3, 1, 6)
+      ] },
+    goliath: { id: 'goliath', name: 'House Goliath', equipmentList: 'goliath', tradingPostAtCreation: false, geneSmithing: true,
+      fighters: [
+        GO('goBreaker', 'Forge Breaker', 'Ganger', 70, 4, 1, 6, 3, 3, 'goliath'),
+        GO('goGunner', 'Forge Gunner', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath'),
+        GO('goHauler', 'Forge Hauler', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath'),
+        GO('goPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath')
+      ] },
+    furnaceBrutes: { id: 'furnaceBrutes', name: 'Furnace Brutes (Goliath)', equipmentList: 'furnaceBrutes', tradingPostAtCreation: true, geneSmithing: true,
+      fighters: [
+        GO('fbDespot', 'Forge Despot', 'Leader', 140, 4, 3, 5, 3, 4, 'furnaceBrutes'),
+        GO('fbMaster', 'Forge Master', 'Champion', 105, 4, 2, 5, 3, 3, 'furnaceBrutes', { note: 'may take a second gene-smithing option' }),
+        GO('fbBreaker', 'Forge Breaker', 'Ganger', 70, 4, 1, 6, 3, 3, 'furnaceBrutes'),
+        GO('fbHauler', 'Forge Hauler', 'Ganger', 60, 4, 1, 6, 3, 3, 'furnaceBrutes'),
+        GO('fbPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'furnaceBrutes')
+      ] },
+    unborn: { id: 'unborn', name: 'Unborn (Goliath)', equipmentList: 'unborn', tradingPostAtCreation: false, geneSmithing: true,
+      fighters: [
+        GO('ubDoc', 'Unborn Doc', 'Leader', 145, 4, 3, 5, 3, 4, 'unborn'),
+        GO('ubTwiceBorn', 'Twice Born', 'Champion', 100, 4, 2, 5, 3, 3, 'unborn'),
+        GO('ubMalformed', 'Malformed', 'Brute, Loner', 80, 4, 2, 6, 4, 2, 'unborn'),
+        GO('ubGunner', 'Forge Gunner', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn'),
+        GO('ubPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn')
+      ] },
+    generic: { id: 'generic', name: 'Core rules fighter types', equipmentList: null, tradingPostAtCreation: false, geneSmithing: false,
+      fighters: Data.fighters.filter(f => !f.book).map(f => ({
+        id: 'gen' + f.name, name: f.name, type: f.name, cost: null, T: f.T, W: f.W, sv: f.sv, S: f.S, I: f.I, equipmentList: null })) }
+  };
+
+  /* The plain Ganger every rating is measured against: TI 100. */
+  const GANGER = { T: 3, W: 1, sv: 6, inv: 0, S: 3, I: 4 };
+
+  /* ---- Folding items into the target ------------------------------------- */
+  function effectiveTarget(profile, items) {
+    const t = {
+      T: profile.T, W: profile.W, sv: profile.sv || 0, inv: profile.inv || 0,
+      S: profile.S || 3, I: profile.I || 4,
+      meleeSave: 0, rangedSave: 0, evasionRanged: 1,
+      refractor: false, reflec: false, hazardSuit: false, respirator: false, bioBooster: false,
+      dodge: false, ironJaw: false, scarTissue: false, adaptiveBiology: false
+    };
+    let svBonus = 0;
+    for (const it of items) {
+      const e = it.effects;
+      for (const k in e) {
+        if (k === 'sv') svBonus += e[k];
+        else if (k === 'evasionRanged') t.evasionRanged *= e[k];
+        else if (typeof e[k] === 'number') t[k] += e[k];
+        else t[k] = t[k] || e[k];
+      }
+    }
+    // No save counts as 7+ for arithmetic, so armour on a bare fighter gives 6+.
+    if (svBonus) { const sv = (t.sv || 7) - svBonus; t.sv = sv >= 7 ? 0 : Math.max(2, sv); }
+    t.T = clamp(t.T, 1, 10);
+    t.W = clamp(t.W, 1, 20);
+    t.S = clamp(t.S, 1, 10);
+    t.I = clamp(t.I, 1, 10);
+    return t;
+  }
+
+  /* ---- One hit ---------------------------------------------------------------
+     From the wound roll to the Injury dice, on one target state, returning the
+     distribution over the next state. Everything the attacker controls (the
+     hit roll, Rapid Fire, Attacks) happened before this point. */
+
+  /* Two Injury dice with the bearer picking (bio-booster at Lethality 0):
+     Flesh Wound if either die shows one, else Seriously Injured if either
+     die does, else Out of Action. */
+  const BEARER_PICK_2 = (function () {
+    const inj = 1 - Math.pow((6 - FACES.inj) / 6, 2);
+    const ooa = Math.pow(FACES.ooa / 6, 2);
+    return { inj: inj, ooa: ooa, si: 1 - inj - ooa };
+  })();
+
+  function saveOutcomes(prof, t, s, opts, rendingMod, allowArmour) {
+    const melee = !!prof.melee;
+    let ap = prof.ap;
+    if (t.reflec && !melee && REFLEC_FAMILIES.indexOf(prof.family) >= 0) ap = 0;
+    const mods = ap + rendingMod + (melee ? t.meleeSave : t.rangedSave + opts.cover);
+    const armour = allowArmour ? Engine.saveProb(t.sv, mods, 0, true) : 0;
+    let inv = t.inv;
+    if (prof.gas && t.respirator) inv = inv ? Math.min(inv, 5) : 5;   // p163
+    const other = Engine.saveProb(0, 0, inv, false);
+    const field = (t.refractor && !s.burnt) ? Engine.saveProb(0, 0, 5, false) : 0;
+    // Only one save is rolled per hit, so the model takes the best. On a tie
+    // the fighter keeps the field for later rather than risk burning it out.
+    if (field > Math.max(armour, other)) {
+      return [{ p: field, saved: true }, { p: 1 / 6, saved: false, burnt: true },
+              { p: 1 - field - 1 / 6, saved: false }];
+    }
+    const best = Math.max(armour, other);
+    return [{ p: best, saved: true }, { p: 1 - best, saved: false }];
+  }
+
+  function injure(s, L, t, burnt, out, p) {
+    if (t.scarTissue && L > 1) L -= 1;               // minimum 1
+    let bio = s.bio, pick;
+    if (t.bioBooster && !s.bio && L >= 1) {
+      bio = true; L -= 1;
+      pick = L === 0 ? BEARER_PICK_2 : Engine.injuryPick(L, FACES);
+    } else {
+      pick = Engine.injuryPick(L, FACES);
+    }
+    addTo(out, enc(0, COND.OOA, burnt, bio), p * pick.ooa);
+    addTo(out, enc(0, Math.max(s.cond, COND.SERIOUS), burnt, bio), p * pick.si);
+    addTo(out, enc(0, Math.max(s.cond, COND.INJURED), burnt, bio), p * pick.inj);
+  }
+
+  /* An unsaved wound: Damage (X) wounds off, Injury dice at zero. */
+  function wound(s, prof, t, L, burnt, out, p) {
+    if (prof.web) { addTo(out, enc(s.w, s.cond, burnt, s.bio), p); return; }
+    const nw = Math.max(0, s.w - prof.damage);
+    if (nw > 0) { addTo(out, enc(nw, s.cond, burnt, s.bio), p); return; }
+    injure(s, L, t, burnt, out, p);
+  }
+
+  /* A wound that got through the wound roll: Dodge, then the save. */
+  function afterWoundRoll(id, s, prof, t, opts, L, rendingMod, allowArmour, out, p) {
+    if (t.dodge) { addTo(out, id, p / 6); p *= 5 / 6; }
+    for (const o of saveOutcomes(prof, t, s, opts, rendingMod, allowArmour)) {
+      const burnt = s.burnt || !!o.burnt;
+      if (o.saved) addTo(out, enc(s.w, s.cond, burnt, s.bio), p * o.p);
+      else wound(s, prof, t, L, burnt, out, p * o.p);
+    }
+  }
+
+  function woundTargetFor(prof, t) {
+    if (prof.toxin > 0) return prof.toxin;                       // Toxin ignores Toughness (p165)
+    if (prof.str === null || prof.str === undefined) return 7;   // nothing to wound with
+    let T = t.T;
+    if (t.ironJaw && prof.melee && prof.ap === 0) T += 2;
+    return Engine.woundTarget(prof.str, T);
+  }
+
+  function resolveHit(id, prof, t, opts, allowBlaze) {
+    const out = new Map();
+    const s = dec(id);
+    if (s.cond === COND.OOA) { out.set(id, 1); return out; }
+
+    if (prof.flash) { out.set(id, 1); return out; }   // Blind never moves a fighter toward Down
+    if (prof.graviton) {                              // Strength check, no armour save (p163)
+      const pFail = clamp((6 - t.S) / 6, 0, 1);
+      addTo(out, id, 1 - pFail);
+      afterWoundRoll(id, s, prof, t, opts, prof.lethality, 0, false, out, pFail);
+      return out;
+    }
+
+    const need = woundTargetFor(prof, t);
+    const branches = [];   // { p, face } for the wound roll that counts
+    for (let f = 1; f <= 6; f++) {
+      if (f < need) { branches.push({ p: 1 / 6, face: f, wounds: false }); continue; }
+      if (t.adaptiveBiology && prof.toxin > 0) {
+        // The wound must be re-rolled; traits key off the final dice.
+        for (let g = 1; g <= 6; g++) branches.push({ p: 1 / 36, face: g, wounds: g >= need });
+      } else {
+        branches.push({ p: 1 / 6, face: f, wounds: true });
+      }
+    }
+
+    for (const b of branches) {
+      const sub = new Map();
+      const blaze = prof.blaze > 0 && b.face >= prof.blaze && !t.hazardSuit;   // triggers off the wound roll
+      if (!b.wounds) {
+        sub.set(id, 1);
+      } else {
+        const rending = prof.rending > 0 && b.face >= prof.rending;
+        const shred = prof.shred > 0 && b.face >= prof.shred;
+        const breaching = prof.breaching > 0 && b.face >= prof.breaching;
+        const allowArmour = !prof.gas && !prof.web && !breaching;
+        afterWoundRoll(id, s, prof, t, opts, prof.lethality + (shred ? 1 : 0), rending ? -1 : 0, allowArmour, sub, 1);
+      }
+      // Blaze (p162): one extra hit with the same profile, which cannot chain.
+      const final = (blaze && allowBlaze) ? applyHit(sub, prof, t, opts, false) : sub;
+      for (const [k, q] of final) addTo(out, k, b.p * q);
+    }
+    return out;
+  }
+
+  function applyHit(dist, prof, t, opts, allowBlaze) {
+    const out = new Map();
+    for (const [id, p] of dist) {
+      for (const [k, q] of resolveHit(id, prof, t, opts, allowBlaze)) addTo(out, k, p * q);
+    }
+    return out;
+  }
+
+  /* ---- Expected hits to Down --------------------------------------------------
+     Repeated hits form an absorbing chain over the target states. Because a
+     hit can only leave the state as it is or move it forward, each state's
+     expectation solves in one pass from the most damaged state back:
+       E(s) = (1 + sum over s' != s, s' not Down of P(s->s') E(s')) / (1 - P(s->s)) */
+  function hitsToDown(prof, t, opts) {
+    const isDown = opts.endState === 'ooa'
+      ? (k) => ((k >> 2) & 3) === COND.OOA
+      : (k) => ((k >> 2) & 3) >= COND.SERIOUS;
+    const trans = new Map(), E = new Map();
+    const T = (id) => { let m = trans.get(id); if (!m) { m = resolveHit(id, prof, t, opts, true); trans.set(id, m); } return m; };
+    function expect(id) {
+      if (E.has(id)) return E.get(id);
+      let stay = 0, acc = 1;
+      for (const [k, p] of T(id)) {
+        if (k === id) { stay += p; continue; }
+        if (isDown(k)) continue;
+        acc += p * expect(k);
+      }
+      const v = 1 - stay < 1e-12 ? Infinity : acc / (1 - stay);
+      E.set(id, v);
+      return v;
+    }
+    const start = enc(t.W, COND.NONE, false, false);
+    let pDownFirst = 0;
+    for (const [k, p] of T(start)) if (isDown(k)) pDownFirst += p;
+    return { hits: expect(start), pDownFirst: pDownFirst };
+  }
+
+  /* ---- Rating ------------------------------------------------------------------ */
+  function normaliseOptions(o) {
+    o = o || {};
+    const pool = o.pool || POOL_V1;
+    const opts = {
+      pool: pool,
+      endState: o.endState === 'ooa' ? 'ooa' : 'down',
+      opponent: o.opponent || 'default',
+      mode: o.mode === 'campaign' ? 'campaign' : 'creation',
+      cover: clamp(parseInt(o.cover, 10) || 0, 0, 2),
+      gang: o.gang === undefined ? 'vanSaar' : o.gang,
+      equipmentList: o.equipmentList
+    };
+    opts.weights = poolWeights(pool, opts.opponent);
+    const gang = opts.gang ? GANGS[opts.gang] : null;
+    if (opts.gang && !gang) throw new Error('unknown gang ' + opts.gang);
+    if (opts.equipmentList === undefined) opts.equipmentList = gang ? gang.equipmentList : null;
+    opts.gangDef = gang;
+    return opts;
+  }
+
+  /* Weighted geometric mean of hits, and the per-profile detail. */
+  function score(profile, items, opts) {
+    const t = effectiveTarget(profile, items);
+    const per = opts.pool.profiles.map(p => {
+      const r = hitsToDown(p, t, opts);
+      return { id: p.id, name: p.name, role: p.role, family: p.family, hits: r.hits, pDownFirst: r.pDownFirst };
+    });
+    return { target: t, per: per };
+  }
+
+  function geoMean(values, weights) {
+    let num = 0, den = 0;
+    for (let i = 0; i < values.length; i++) {
+      if (weights[i] <= 0) continue;
+      num += weights[i] * Math.log(values[i]);
+      den += weights[i];
+    }
+    return den > 0 ? Math.exp(num / den) : 1;
+  }
+
+  const baselineCache = new Map();
+  function baseline(opts) {
+    const key = [opts.pool.version, opts.endState, opts.cover].join('|');
+    if (opts.pool !== POOL_V1) return score(GANGER, [], opts).per;   // custom pools are not cached
+    let b = baselineCache.get(key);
+    if (!b) { b = score(GANGER, [], opts).per; baselineCache.set(key, b); }
+    return b;
+  }
+
+  function tiOf(per, base, weights) {
+    return 100 * geoMean(per.map((p, i) => p.hits / base[i].hits), weights);
+  }
+
+  function availability(item, opts) {
+    const gang = opts.gangDef;
+    if (item.kind === 'skill') return { status: 'skill', available: true, note: item.set + ' skill' };
+    if (item.weapon) return { status: 'weapon', available: true, note: 'depends on the weapon carried' };
+    if (item.kind === 'gene') {
+      return gang && gang.geneSmithing
+        ? { status: 'recruitment', available: true, note: 'gene-smithing, at recruitment only' }
+        : { status: 'unavailable', available: false, note: 'Goliath gene-smithing only' };
+    }
+    const list = opts.equipmentList ? EQUIPMENT_LISTS[opts.equipmentList] : null;
+    if (!list) return { status: 'unknown', available: true, note: 'Equipment List not transcribed' };
+    const entry = list.items[item.id];
+    if (entry) return { status: 'list', available: true, note: entry.only ? list.name + ' list, ' + entry.only + ' only' : list.name + ' list' };
+    const tradingPost = opts.mode === 'campaign' || (gang && gang.tradingPostAtCreation);
+    if (tradingPost && item.tradingPost) return { status: 'tradingPost', available: true, note: 'Trading Post' };
+    if (item.exclusive) return { status: 'unavailable', available: false, note: 'exclusive to ' + GANGS[item.exclusive].name };
+    return { status: 'unavailable', available: false, note: 'Trading Post only; not on the ' + list.name + ' list' };
+  }
+
+  function resolveItems(ids, problems) {
+    const out = [];
+    for (const id of ids || []) {
+      const it = byId[id];
+      if (!it) { problems.push('Unknown item id "' + id + '" was ignored.'); continue; }
+      if (out.indexOf(it) < 0) out.push(it);
+    }
+    return out;
+  }
+
+  function withItem(items, it) {
+    const kept = items.filter(x => x !== it && !(it.exclusiveGroup && x.exclusiveGroup === it.exclusiveGroup));
+    kept.push(it);
+    return kept;
+  }
+  const withoutItem = (items, it) => items.filter(x => x !== it);
+
+  function rate(fighter, options) {
+    fighter = fighter || {};
+    const opts = normaliseOptions(options);
+    const problems = [], notes = [], unmodelled = [];
+    const profile = Object.assign({}, GANGER, fighter.profile || {});
+    const selected = resolveItems([].concat(fighter.wargear || [], fighter.skills || [], fighter.geneSmithing || []), problems);
+
+    for (const g of ['armour', 'harness']) {
+      const n = selected.filter(x => x.exclusiveGroup === g).length;
+      if (n > 1) problems.push(g === 'armour'
+        ? 'More than one suit of armour is selected; a fighter wears one. The save bonuses are stacked here.'
+        : 'Both servo-harness sizes are selected; a fighter wears one. The bonuses are stacked here.');
+    }
+    if (opts.gangDef && !opts.gangDef.geneSmithing && selected.some(x => x.kind === 'gene')) {
+      problems.push('Gene-smithing is a Goliath option; it is rated here but marked unavailable.');
+    }
+
+    const base = baseline(opts);
+    const weights = opts.weights;
+    const main = score(profile, selected, opts);
+    const ti = tiOf(main.per, base, weights);
+
+    const c = fighter.cost || {};
+    const cost = {
+      base: Number(c.base) || 0, weapons: Number(c.weapons) || 0, other: Number(c.other) || 0,
+      defensive: selected.reduce((a, it) => a + (it.cost || 0), 0)
+    };
+    cost.total = cost.base + cost.weapons + cost.other + cost.defensive;
+    const tp100 = cost.total > 0 ? 100 * ti / cost.total : null;
+
+    const perProfile = main.per.map((p, i) => ({
+      id: p.id, name: p.name, role: p.role, family: p.family, weight: weights[i],
+      hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base[i].hits, gangerHits: base[i].hits
+    }));
+
+    /* Marginal value of every rateable item, selected or not. For an item in
+       an exclusive group (one suit of armour), "with" swaps it in. */
+    const gear = ITEMS.map(it => {
+      const withSel = withItem(selected, it), withoutSel = withoutItem(selected, it);
+      const on = selected.indexOf(it) >= 0;
+      const sWith = on && withSel.length === selected.length && withSel.every(x => selected.indexOf(x) >= 0) ? main : score(profile, withSel, opts);
+      const sWithout = !on ? main : score(profile, withoutSel, opts);
+      const tiWith = tiOf(sWith.per, base, weights), tiWithout = tiOf(sWithout.per, base, weights);
+      const ratio = tiWith / tiWithout;
+      const dTi = tiWith - tiWithout;
+      const g = it.cost || 0;
+      // Break-even cost C*: the rest of the fighter must be worth more than
+      // this (or less, for an item that saves credits) for TP100 to improve.
+      let breakEven = null, breakEvenDirection = null;
+      if (g > 0 && ratio > 1) { breakEven = g / (ratio - 1); breakEvenDirection = 'above'; }
+      else if (g < 0 && ratio < 1) { breakEven = g / (ratio - 1); breakEvenDirection = 'below'; }
+      const byRole = {};
+      for (const r of opts.pool.roles) {
+        const idx = [];
+        opts.pool.profiles.forEach((p, i) => { if (p.role === r.id) idx.push(i); });
+        byRole[r.id] = geoMean(idx.map(i => sWith.per[i].hits / sWithout.per[i].hits), idx.map(i => weights[i] || 1)) - 1;
+      }
+      const av = availability(it, opts);
+      return {
+        id: it.id, name: it.name, kind: it.kind, group: it.group || it.kind, cost: g, text: it.text,
+        selected: on, available: av.available, availability: av.status, availabilityNote: av.note,
+        tiWith: tiWith, tiWithout: tiWithout, dTi: dTi, ratio: ratio,
+        dTp100: g > 0 ? 100 * dTi / g : null,
+        breakEven: breakEven, breakEvenDirection: breakEvenDirection, byRole: byRole
+      };
+    });
+
+    if (main.target.refractor) notes.push('Refractor field: the 5+ invulnerable save is used only when it beats the armour save, and a natural 1 on it burns the field out for the rest of the chain.');
+    if (main.target.bioBooster) notes.push('Bio-booster: fires the first time the fighter is reduced to 0 Wounds. At Lethality 0 the bearer rolls two Injury dice and picks.');
+    if (main.target.evasionRanged < 1) {
+      unmodelled.push('Refraction cloak');
+      notes.push('Refraction cloak changes the hit roll, which this module leaves to the attacker. It is reported as an evasion factor (' +
+        main.target.evasionRanged.toFixed(2) + ' of ranged, non-Template hits kept at a reference BS 3+) rather than in TI.');
+    }
+    if (main.target.respirator) notes.push('Respirator: no weapon in the pool has Gas, so it adds nothing to TI here.');
+    if (selected.some(x => x.id === 'hystrarShield')) notes.push('‘Hystrar’ shield: takes a weapon slot, and the fighter is assumed to use it in combat for the Parry bonus.');
+    if (selected.filter(x => x.kind === 'gene').length > 1) notes.push('Only one gene-smithing option is normally allowed (the Forge Master may take two).');
+    if (opts.equipmentList && !EQUIPMENT_LISTS[opts.equipmentList]) problems.push('Unknown Equipment List "' + opts.equipmentList + '"; availability is unknown.');
+    if (!opts.equipmentList) notes.push('No Equipment List for this fighter, so every item is rated as available.');
+
+    return {
+      ti: ti, tp100: tp100, hitsToDown: geoMean(perProfile.map(p => p.hits), weights),
+      cost: cost, perProfile: perProfile,
+      evasion: { ranged: main.target.evasionRanged },
+      target: main.target,
+      gear: gear,
+      problems: problems, notes: notes, unmodelled: unmodelled,
+      poolVersion: opts.pool.version,
+      options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover,
+                 gang: opts.gang, equipmentList: opts.equipmentList }
+    };
+  }
+
+  return {
+    rate: rate, hitsToDown: hitsToDown, resolveHit: resolveHit, applyHit: applyHit,
+    effectiveTarget: effectiveTarget, poolWeights: poolWeights, availability: availability,
+    enc: enc, dec: dec, GANGER: GANGER, BEARER_PICK_2: BEARER_PICK_2,
+    WARGEAR: WARGEAR, SKILLS: SKILLS, GENE_SMITHING: GENE_SMITHING, ITEMS: ITEMS,
+    POOL_V1: POOL_V1, OPPONENTS: OPPONENTS, GANGS: GANGS, EQUIPMENT_LISTS: EQUIPMENT_LISTS,
+    POOL_VERSION: POOL_VERSION
+  };
+})(Engine, Data);
+if (typeof module !== 'undefined') module.exports = Tankiness;
+</script>
+
+<script id="ui">
+/* ==========================================================================
+   UI — builds the page from a field spec, recomputes on every change.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* ---- tiny DOM helpers ------------------------------------------------ */
+  function el(tag, attrs) {
+    const n = document.createElement(tag);
+    for (const k in (attrs || {})) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else if (k === 'html') n.innerHTML = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    for (let i = 2; i < arguments.length; i++) {
+      const c = arguments[i];
+      if (c == null) continue;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+    return n;
+  }
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  /* opts: array of [value, label] or ['group', name, [[value,label],...]] */
+  function fillOptions(sel, opts, value) {
+    sel.innerHTML = '';
+    (function add(list, parent) {
+      for (const o of list) {
+        if (o[0] === 'group') {
+          const g = el('optgroup', { label: o[1] });
+          add(o[2], g);
+          parent.appendChild(g);
+        } else {
+          const op = el('option', { value: String(o[0]), text: o[1] });
+          if (String(o[0]) === String(value)) op.selected = true;
+          parent.appendChild(op);
+        }
+      }
+    })(opts, sel);
+  }
+  function field(label, bind, opts, value, hint) {
+    const sel = el('select', { 'data-bind': bind, id: 'f-' + bind.replace(/\./g, '-') });
+    fillOptions(sel, opts, value);
+    const wrap = el('div', { class: 'f' }, el('label', { for: sel.id, text: label }), sel);
+    if (hint) wrap.appendChild(el('p', { class: 'note', text: hint }));
+    return wrap;
+  }
+  function numberField(label, bind, value, hint) {
+    const inp = el('input', { type: 'number', inputmode: 'numeric', min: '0', step: '5',
+      'data-bind': bind, id: 'f-' + bind.replace(/\./g, '-') });
+    inp.value = String(value);
+    const wrap = el('div', { class: 'f' }, el('label', { for: inp.id, text: label }), inp);
+    if (hint) wrap.appendChild(el('p', { class: 'note', text: hint }));
+    return wrap;
+  }
+  function gearChip(it) {
+    const box = el('input', { type: 'checkbox', 'data-bind': 'g.' + it.id });
+    const cost = it.cost ? (it.cost > 0 ? it.cost + 'c' : 'saves ' + (-it.cost) + 'c') : '';
+    return el('label', { class: 'chk', 'data-gear': it.id, title: it.text },
+      box, el('span', { text: it.name }),
+      cost ? el('span', { class: 'cost', text: cost }) : null,
+      el('span', { class: 'avail', 'data-avail': it.id }));
+  }
+  function group(legend) {
+    const fs = el('fieldset', {}, el('legend', { text: legend }));
+    const g = el('div', { class: 'grid' });
+    fs.appendChild(g);
+    for (let i = 1; i < arguments.length; i++) if (arguments[i]) g.appendChild(arguments[i]);
+    return fs;
+  }
+  function chipRow(title, items) {
+    const row = el('div', { class: 'chks' });
+    for (const it of items) row.appendChild(gearChip(it));
+    const wrap = el('div', { class: 'f wide' });
+    if (title) wrap.appendChild(el('p', { class: 'subhead', text: title }));
+    wrap.appendChild(row);
+    return wrap;
+  }
+  function tableBlock(legend, headers, dataKey, legendText) {
+    const fs = el('fieldset', {}, el('legend', { text: legend }));
+    const table = el('table', {}, el('thead', {}, el('tr', {}, ...headers.map(h => el('th', { text: h })))),
+      el('tbody', { 'data-rows': dataKey }));
+    fs.appendChild(el('div', { class: 'tablewrap' }, table));
+    if (legendText) fs.appendChild(el('p', { class: 'legendrow', html: legendText }));
+    return fs;
+  }
+
+  /* ---- option lists ---------------------------------------------------- */
+  const range = (a, b) => { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; };
+  const NUM = range(1, 10).map(n => [n, String(n)]);
+  const SAVE = [[0, 'none']].concat(range(2, 6).map(n => [n, n + '+']));
+  const GANG_OPTS = Object.keys(Tankiness.GANGS).map(id => [id, Tankiness.GANGS[id].name]);
+  const MODE = [['creation', 'Gang creation (Equipment List only)'], ['campaign', 'Campaign (list + Trading Post)']];
+  const OPPONENT = Tankiness.OPPONENTS.map(o => [o.id, o.name]);
+  const COVER = [[0, 'none'], [1, '+1 to armour saves'], [2, '+2 to armour saves']];
+  const END = [['down', 'Seriously Injured or Out of Action'], ['ooa', 'Out of Action only']];
+  const ROLE_LABEL = { leaderKiller: 'Melta', special: 'Plasma', template: 'Flamer', throwaway: 'Las / stub', melee: 'Melee' };
+
+  function fighterOpts(gangId) {
+    const g = Tankiness.GANGS[gangId];
+    return [['', 'Custom (as entered below)']].concat(g.fighters.map(f => [f.id,
+      f.name + (f.cost != null ? ' · ' + f.cost + 'c' : '') + ' · T' + f.T + ' W' + f.W + ' Sv' + (f.sv ? f.sv + '+' : '-')]));
+  }
+
+  /* ---- page ------------------------------------------------------------- */
+  function resultsBlock() {
+    const mk = (cls, key, label) => el('div', { class: 'odd ' + cls },
+      el('div', { class: 'v', 'data-out': key, text: '–' }),
+      el('div', { class: 'k', text: label }));
+    return el('div', { class: 'results' },
+      el('div', { class: 'odds' },
+        mk('ti', 'ti', 'Tankiness index'),
+        mk('tp', 'tp100', 'TI per 100 credits'),
+        mk('cr', 'total', 'Total credits')),
+      el('div', { class: 'minor', 'data-minor': '1' }),
+      el('div', { class: 'warn hidden', 'data-warn': '1' }),
+      el('div', { class: 'info hidden', 'data-notes': '1' }));
+  }
+
+  function build(root) {
+    const W = Tankiness.WARGEAR;
+    const byGroup = (g) => W.filter(it => it.group === g);
+    const firstGang = GANG_OPTS[0][0];
+
+    root.appendChild(resultsBlock());
+    root.appendChild(group('Fighter',
+      field('Gang', 'pick.gang', GANG_OPTS, firstGang),
+      field('Fighter', 'pick.fighter', fighterOpts(firstGang), 'vsAugmek',
+        'Picking one fills the profile and base cost in; every field stays editable.'),
+      field('Stage', 'o.mode', MODE, 'creation'),
+      el('p', { class: 'profile', 'data-profile': '1' })));
+    root.appendChild(group('Profile',
+      field('Toughness', 't.T', NUM, 3),
+      field('Wounds', 't.W', NUM, 2),
+      field('Save', 't.sv', SAVE, 5),
+      field('Invulnerable save', 't.inv', SAVE, 0),
+      field('Strength', 't.S', NUM, 3),
+      field('Initiative', 't.I', NUM, 4)));
+    root.appendChild(group('Credits',
+      numberField('Base cost', 'c.base', 95, 'The fighter card, without gear.'),
+      numberField('Weapons', 'c.weapons', 0, 'Everything the fighter shoots or swings with.'),
+      numberField('Other wargear', 'c.other', 0, 'Non-defensive kit; defensive items are added from the chips.')));
+    root.appendChild(group('Defensive wargear',
+      chipRow('Armour (one suit)', byGroup('armour')),
+      chipRow('Fields and cloaks', byGroup('field')),
+      chipRow('Other', byGroup('other')),
+      chipRow('Weapons carried', byGroup('weapon'))));
+    root.appendChild(group('Skills', chipRow(null, Tankiness.SKILLS)));
+    root.appendChild(group('Gene-smithing (Goliath, at recruitment)', chipRow(null, Tankiness.GENE_SMITHING)));
+    root.appendChild(group('Scenario',
+      field('Opponent profile', 'o.opponent', OPPONENT, 'default', 'How much of the pool each weapon role carries.'),
+      field('Cover', 'o.cover', COVER, 0, 'Applies to armour saves against shooting; invulnerable saves ignore it.'),
+      field('Down means', 'o.endState', END, 'down')));
+    root.appendChild(tableBlock('What each item would do',
+      ['Item', 'Cost', 'ΔTI', 'ΔTI / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee', 'Where from'],
+      'gear',
+      'ΔTI is the change from adding the item (or, for one already on, what dropping it would cost). ' +
+      'Break-even is the cost the rest of the fighter must exceed for the item to raise TI per credit. ' +
+      'Role columns are the gain in hits to Down against that weapon class. ● marks items on the fighter.'));
+    root.appendChild(tableBlock('Hits to Down, by weapon',
+      ['Weapon', 'Weight', 'Hits to Down', 'Down on 1st hit', 'vs Ganger'],
+      'weapons',
+      'Sorted weakest first: the top row is what this fighter is most exposed to.'));
+    root.appendChild(assumptionsBlock());
+  }
+
+  function assumptionsBlock() {
+    const body = el('div', { class: 'body' });
+    body.appendChild(el('p', { html:
+      '<b>The rating.</b> For each weapon in the pool the module works out the expected number of confirmed hits ' +
+      'needed to leave the fighter Seriously Injured or Out of Action, by pushing the fighter through the ' +
+      'wound roll, save and Injury dice hit after hit until it goes Down. The <b>Tankiness Index</b> is the ' +
+      'weighted geometric mean of those figures relative to a plain Ganger (T3, W1, Sv 6+), times 100, so a ' +
+      'Ganger always scores 100 under the same scenario. <b>TI per 100 credits</b> divides by base + weapons + ' +
+      'other + defensive gear.' }));
+    body.appendChild(el('p', { html:
+      '<b>Hits, not attacks.</b> The hit roll is left out on purpose. Weapon Skill, Ballistic Skill, Attacks and ' +
+      'Rapid Fire belong to the attacker, so they sit in the damage side of the loadout ranker; this page rates ' +
+      'only what the target controls. A refraction cloak therefore shows up as an evasion factor, not in TI.' }));
+    body.appendChild(el('p', { 'data-pool': '1' }));
+    body.appendChild(el('p', { html:
+      '<b>Fixed scenario for every hit:</b> target Active, no range-band save bonus, cover only as set above ' +
+      '(armour saves only). Only one save is rolled per hit, the best available; a natural 1 or 2 always fails, ' +
+      'so Sv 2+ is no better than 3+ against AP –. The attacker rolls Lethality Injury dice and picks the ' +
+      'worst for the target. A Serious Injury does nothing to a fighter already Seriously Injured.' }));
+    body.appendChild(el('p', { html:
+      '<b>Left out:</b> stimm-slug stash, Unstoppable, Medicate, Juggernaut and Nerves of Steel (they act between ' +
+      'hits, not on one); Suppression, Nerve and Recovery tests; return fire; hit-roll traits such as Shock and ' +
+      'Knockback. Nothing here is rolled or sampled.' }));
+    return el('details', {}, el('summary', { text: 'Assumptions and what is left out' }), body);
+  }
+
+  /* ---- state ------------------------------------------------------------ */
+  function readState(root) {
+    const st = {};
+    root.querySelectorAll('[data-bind]').forEach(node => {
+      const path = node.getAttribute('data-bind').split('.');
+      let cur = st;
+      for (let i = 0; i < path.length - 1; i++) cur = (cur[path[i]] = cur[path[i]] || {});
+      let v;
+      if (node.type === 'checkbox') v = node.checked;
+      else if (node.type === 'number') v = parseInt(node.value, 10) || 0;
+      else { v = node.value; if (/^-?\d+$/.test(v)) v = parseInt(v, 10); }
+      cur[path[path.length - 1]] = v;
+    });
+    return st;
+  }
+  function setControl(root, bind, value) {
+    const node = root.querySelector('[data-bind="' + bind + '"]');
+    if (!node) return;
+    if (node.type === 'checkbox') node.checked = !!value;
+    else node.value = String(value);
+  }
+  function applyFighter(root, f) {
+    setControl(root, 't.T', f.T);
+    setControl(root, 't.W', f.W);
+    setControl(root, 't.sv', f.sv || 0);
+    setControl(root, 't.inv', 0);
+    setControl(root, 't.S', f.S);
+    setControl(root, 't.I', f.I);
+    if (f.cost != null) setControl(root, 'c.base', f.cost);
+  }
+
+  /* ---- formatting ------------------------------------------------------- */
+  const pct = (x) => (x * 100).toFixed(1) + '%';
+  const signed = (x, dp) => (x > 0 ? '+' : '') + x.toFixed(dp);
+  const cls = (x) => x > 0.05 ? 'pos' : (x < -0.05 ? 'neg' : 'zero');
+  const gainPct = (x) => Math.abs(x) < 0.0005 ? '0%' : signed(x * 100, 0) + '%';
+  const credits = (x) => x == null ? '–' : Math.round(x) + 'c';
+
+  function td(text, extra) { return el('td', { class: 'num ' + (extra || ''), text: text }); }
+
+  function show(root, res, ctx) {
+    root.querySelector('[data-out="ti"]').textContent = Math.round(res.ti);
+    root.querySelector('[data-out="tp100"]').textContent = res.tp100 == null ? '–' : res.tp100.toFixed(1);
+    root.querySelector('[data-out="total"]').textContent = res.cost.total;
+
+    const weakest = res.perProfile.slice().sort((a, b) => a.hits - b.hits)[0];
+    const bits = [
+      'Hits to Down, pool average <b>' + res.hitsToDown.toFixed(2) + '</b>',
+      'vs Ganger <b>×' + (res.ti / 100).toFixed(2) + '</b>',
+      'Defensive gear <b>' + res.cost.defensive + 'c</b>',
+      'Most exposed to <b>' + esc(weakest.name) + '</b> (' + weakest.hits.toFixed(2) + ' hits)'
+    ];
+    if (res.evasion.ranged < 1) bits.push('Ranged hits kept <b>' + pct(res.evasion.ranged) + '</b>');
+    root.querySelector('[data-minor]').innerHTML = bits.join(' · ');
+
+    const paint = (sel, lines) => {
+      const box = root.querySelector(sel);
+      box.innerHTML = lines.map(t => '<p>' + t + '</p>').join('');
+      box.classList.toggle('hidden', lines.length === 0);
+    };
+    paint('[data-warn]', res.problems.map(esc));
+    paint('[data-notes]', res.notes.map(esc));
+
+    // chips: availability under the current gang, list and stage
+    for (const g of res.gear) {
+      const chip = root.querySelector('[data-gear="' + g.id + '"]');
+      if (!chip) continue;
+      chip.classList.toggle('unavail', !g.available);
+      const tag = root.querySelector('[data-avail="' + g.id + '"]');
+      tag.textContent = !g.available ? 'not available' : (g.availability === 'tradingPost' ? 'Trading Post' :
+        (g.availabilityNote && /only$/.test(g.availabilityNote) ? g.availabilityNote.replace(/^.*list, /, '') : ''));
+      chip.title = g.text + (g.availabilityNote ? ' — ' + g.availabilityNote : '');
+    }
+
+    // gear table: available items first, best value at the top
+    const order = (g) => (g.available ? 0 : 1);
+    const gear = res.gear.slice().sort((a, b) => order(a) - order(b) ||
+      ((b.dTp100 == null ? -Infinity : b.dTp100) - (a.dTp100 == null ? -Infinity : a.dTp100)) || b.dTi - a.dTi);
+    const gearBody = root.querySelector('[data-rows="gear"]');
+    gearBody.innerHTML = '';
+    for (const g of gear) {
+      const tr = el('tr', { class: (g.selected ? 'on ' : '') + (g.available ? '' : 'unavail') });
+      tr.appendChild(el('td', { text: g.name, title: g.text }));
+      tr.appendChild(td(g.cost ? (g.cost > 0 ? g.cost + 'c' : g.cost + 'c') : '–'));
+      tr.appendChild(td(signed(g.dTi, 1), cls(g.dTi)));
+      tr.appendChild(td(g.dTp100 == null ? '–' : signed(g.dTp100, 0), g.dTp100 == null ? 'zero' : cls(g.dTp100)));
+      tr.appendChild(td(g.breakEven == null ? '–' : (g.breakEvenDirection === 'below' ? '< ' : '') + credits(g.breakEven)));
+      for (const r of ['leaderKiller', 'special', 'template', 'throwaway', 'melee']) {
+        const v = g.byRole[r] || 0;
+        tr.appendChild(td(gainPct(v), cls(v)));
+      }
+      tr.appendChild(el('td', { text: g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : ''), style: 'text-align:left;color:var(--ink-faint)' }));
+      gearBody.appendChild(tr);
+    }
+
+    // per-weapon table, weakest first
+    const wBody = root.querySelector('[data-rows="weapons"]');
+    wBody.innerHTML = '';
+    for (const p of res.perProfile.slice().sort((a, b) => a.hits - b.hits)) {
+      const tr = el('tr');
+      tr.appendChild(el('td', { text: p.name }));
+      tr.appendChild(td(pct(p.weight)));
+      tr.appendChild(td(p.hits.toFixed(2)));
+      tr.appendChild(td(pct(p.pDownFirst)));
+      tr.appendChild(td('×' + p.vsGanger.toFixed(2), cls(p.vsGanger - 1)));
+      wBody.appendChild(tr);
+    }
+
+    // profile line for the picked fighter
+    const line = root.querySelector('[data-profile]');
+    if (ctx.fighter) {
+      const f = ctx.fighter;
+      line.innerHTML = '<b>' + esc(f.name) + '</b> · ' + esc(f.type) + ' · ' +
+        (f.cost != null ? f.cost + ' credits · ' : '') +
+        'T' + f.T + ' W' + f.W + ' Sv ' + (f.sv ? f.sv + '+' : '–') +
+        (f.equipmentList ? ' · buys from the ' + esc(Tankiness.EQUIPMENT_LISTS[f.equipmentList].name) + ' list' : '') +
+        (f.note ? ' · ' + esc(f.note) : '');
+      line.classList.remove('hidden');
+    } else {
+      line.classList.add('hidden');
+    }
+
+    // pool description in the assumptions block
+    const pool = root.querySelector('[data-pool]');
+    pool.innerHTML = '<b>Reference pool ' + esc(res.poolVersion) + '</b>, weights for the ' +
+      esc(Tankiness.OPPONENTS.find(o => o.id === res.options.opponent).name.toLowerCase()) + ' opponent: ' +
+      res.perProfile.map(p => esc(p.name) + ' ' + pct(p.weight)).join(', ') +
+      '. Melee attackers are Strength ' + Tankiness.POOL_V1.meleeStrength + '. Each weapon counts for its hit ' +
+      'profile only, so the plasma gun and pistol share one entry, as do the laspistol and stub gun.';
+  }
+
+  /* ---- wiring ----------------------------------------------------------- */
+  function wire(root) {
+    let lastGang = null, lastFighter = null;
+
+    function recompute() {
+      let st = readState(root);
+
+      // Gang change: swap the fighter list in and seed from its first entry.
+      if (st.pick.gang !== lastGang) {
+        const wasFirst = lastGang !== null;
+        lastGang = st.pick.gang;
+        const sel = root.querySelector('[data-bind="pick.fighter"]');
+        const opts = fighterOpts(st.pick.gang);
+        fillOptions(sel, opts, wasFirst ? opts[1][0] : st.pick.fighter);
+        if (wasFirst) lastFighter = null;
+        st = readState(root);
+      }
+      const gang = Tankiness.GANGS[st.pick.gang];
+      const fighter = gang.fighters.find(f => f.id === st.pick.fighter) || null;
+      // A picker only fills fields in; after that every field stays editable.
+      if (st.pick.fighter !== lastFighter) {
+        lastFighter = st.pick.fighter;
+        if (fighter) { applyFighter(root, fighter); st = readState(root); }
+      }
+
+      const ids = (list) => list.filter(it => st.g && st.g[it.id]).map(it => it.id);
+      const res = Tankiness.rate({
+        profile: { T: st.t.T, W: st.t.W, sv: st.t.sv, inv: st.t.inv, S: st.t.S, I: st.t.I },
+        wargear: ids(Tankiness.WARGEAR),
+        skills: ids(Tankiness.SKILLS),
+        geneSmithing: ids(Tankiness.GENE_SMITHING),
+        cost: { base: st.c.base, weapons: st.c.weapons, other: st.c.other }
+      }, {
+        mode: st.o.mode, opponent: st.o.opponent, cover: st.o.cover, endState: st.o.endState,
+        gang: st.pick.gang, equipmentList: fighter ? fighter.equipmentList : gang.equipmentList
+      });
+      show(root, res, { fighter: fighter, gang: gang });
+    }
+
+    root.addEventListener('change', recompute);
+    root.addEventListener('input', recompute);
+    recompute();
+  }
+
+  /* ---- boot -------------------------------------------------------------- */
+  const root = document.getElementById('panel');
+  build(root);
+  wire(root);
+})();
+</script>
+</body>
+</html>
