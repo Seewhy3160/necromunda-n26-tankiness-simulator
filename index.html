@@ -84,11 +84,13 @@ legend{font:600 12px/1 inherit;text-transform:uppercase;letter-spacing:.8px;colo
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
+td:first-child{white-space:normal;min-width:150px;padding-right:12px}
+td .src{display:block;font-size:11px;line-height:1.3;color:var(--ink-faint);margin-top:1px}
+td .src:empty{display:none}
 th{color:var(--ink-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 tr.on td:first-child::before{content:"\25CF  ";color:var(--accent)}
 tr.unavail td{color:var(--ink-faint)}
-tr.unavail td:first-child::after{content:" (not available)";font-size:11px}
 .pos{color:var(--ok)} .neg{color:var(--ooa)} .zero{color:var(--ink-faint)}
 tbody tr:last-child td{border-bottom:0}
 .legendrow{font-size:12px;color:var(--ink-faint);margin:8px 0 0}
@@ -1486,7 +1488,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       field('Cover', 'o.cover', COVER, 0, 'Applies to armour saves against shooting; invulnerable saves ignore it.'),
       field('Down means', 'o.endState', END, 'down')));
     root.appendChild(tableBlock('What each item would do',
-      ['Item', 'Cost', 'ΔHits', 'ΔHits / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee', 'Where from'],
+      ['Item', 'Cost', 'ΔHits', 'ΔHits / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee'],
       'gear',
       'ΔHits is the change in hits to Down from adding the item (or, for one already on, what dropping it would cost); ' +
       'ΔHits / 100c is that gain per 100 credits spent on the item. ' +
@@ -1608,7 +1610,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     gearBody.innerHTML = '';
     for (const g of gear) {
       const tr = el('tr', { class: (g.selected ? 'on ' : '') + (g.available ? '' : 'unavail') });
-      tr.appendChild(el('td', { text: g.name, title: g.text }));
+      const from = (g.available ? '' : 'Not available: ') + (g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : ''));
+      tr.appendChild(el('td', { title: g.text }, el('span', { text: g.name }), el('span', { class: 'src', text: from })));
       tr.appendChild(td(g.cost ? (g.cost > 0 ? g.cost + 'c' : g.cost + 'c') : '–'));
       tr.appendChild(td(signed(g.dHits, 2), cls(g.dHits)));
       tr.appendChild(td(g.dHitsPer100 == null ? '–' : signed(g.dHitsPer100, 2), g.dHitsPer100 == null ? 'zero' : cls(g.dHitsPer100)));
@@ -1617,7 +1620,6 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
         const v = g.byRole[r] || 0;
         tr.appendChild(td(gainPct(v), cls(v)));
       }
-      tr.appendChild(el('td', { text: g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : ''), style: 'text-align:left;color:var(--ink-faint)' }));
       gearBody.appendChild(tr);
     }
 
