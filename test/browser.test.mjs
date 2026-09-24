@@ -162,16 +162,23 @@ t('the per-weapon table is sorted cheapest-for-the-enemy first, with the attacke
 t('switching gang swaps the fighter list and seeds its first entry', async () => {
   const tek = parseInt(await out('ecd'), 10);
   await setSel('pick.gang', 'goliath');
-  assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'goBreaker');
+  assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'goTyrant');
   assert.equal(await page.inputValue('[data-bind="t.T"]'), '4');
-  assert.equal(await page.inputValue('[data-bind="c.base"]'), '70');
-  const breaker = parseInt(await out('ecd'), 10);
-  assert.ok(breaker > tek, `Forge Breaker ${breaker} vs Tek ${tek}`);
+  assert.equal(await page.inputValue('[data-bind="c.base"]'), '140');
+  const tyrant = parseInt(await out('ecd'), 10);
+  assert.ok(tyrant > tek, `Forge Tyrant ${tyrant} vs Tek ${tek}`);
   assert.doesNotMatch(await page.getAttribute('[data-gear="ironFlesh"]', 'class'), /unavail/);
   await check('g.ironFlesh', true);
-  assert.equal(await out('total'), '100');
-  assert.ok(parseInt(await out('ecd'), 10) > breaker);
+  assert.equal(await out('total'), '170');
+  assert.ok(parseInt(await out('ecd'), 10) > tyrant);
   await check('g.ironFlesh', false);
+  // The Forge-Born comes with Iron Jaw; the Sumpkroc is a Beast and gets no gene-smithing.
+  await setSel('pick.fighter', 'goForgeBorn');
+  assert.equal(await page.isChecked('[data-bind="g.ironJaw"]'), true);
+  await setSel('pick.fighter', 'goSumpkroc');
+  assert.equal(await page.isChecked('[data-bind="g.ironJaw"]'), false);
+  assert.match(await page.getAttribute('[data-gear="ironFlesh"]', 'class'), /unavail/);
+  assert.match(await page.getAttribute('[data-gear="refractor"]', 'class'), /unavail/);
 });
 
 t('cover and the opponent profile change the answer without breaking the Ganger baseline', async () => {

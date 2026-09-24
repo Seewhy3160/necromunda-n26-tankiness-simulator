@@ -101,9 +101,12 @@ recruitment only.
 
 Gangs transcribed so far: House Van Saar (default, Gang List pp72–78,
 including the Cyberachnid pet and the Ash Wastes 'Arachni-Rig', neither of
-which can take wargear), House Goliath with its Furnace Brutes and Unborn
-variants (*The House of Chains*), House Delaque (pp24–30) and House Escher
-(pp36–42), each with their Beasts and Pets, which can take no wargear. The
+which can take wargear), House Goliath (pp48–54: Forge Tyrant to Sumpkroc)
+with its Furnace Brutes and Unborn variants and the extra fighters from *The
+House of Chains*, House Delaque (pp24–30) and House Escher (pp36–42), each
+with their Beasts and Pets, which can take no wargear. A fighter that comes
+with a skill (the Forge-Born's Iron Jaw) has it ticked when picked; Beasts
+take no gene-smithing. The
 Khimerix's Regeneration acts between hits and is not rated. The core rules fighter types (Ganger,
 Champion, Leader, Brute, Juve) are there too, with no list, so everything
 counts as available for them; their Strength and Initiative are the attack

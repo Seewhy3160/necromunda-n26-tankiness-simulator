@@ -482,6 +482,32 @@ test('gang tables carry the transcribed profiles and costs', () => {
     assert.deepEqual(onList, ['meshArmour', 'refractor', 'respirator']);
     for (const p of T.GANGS[gang].fighters) assert.ok(p.equipmentList === gang || p.equipmentList === 'none', p.name);
   }
+  // House Goliath, pp48-54: cost, S, T, W, I, Sv.
+  assert.deepEqual(line(f('goliath', 'Forge Tyrant')), [140, 3, 4, 3, 4, 5]);
+  assert.deepEqual(line(f('goliath', 'Forge Boss')), [100, 3, 4, 2, 3, 5]);
+  assert.deepEqual(line(f('goliath', 'Stimmer')), [120, 4, 4, 2, 4, 5]);
+  assert.deepEqual(line(f('goliath', 'Bruiser')), [45, 3, 4, 1, 3, 6]);
+  assert.deepEqual(line(f('goliath', 'Forge-Born')), [35, 3, 4, 1, 3, 6]);
+  assert.deepEqual(f('goliath', 'Forge-Born').skills, ['ironJaw']);
+  assert.deepEqual(line(f('goliath', 'Bully')), [25, 3, 4, 1, 3, 6]);
+  assert.deepEqual(line(f('goliath', "'Zerker")), [175, 6, 5, 4, 2, 6]);
+  assert.deepEqual(line(f('goliath', 'Sumpkroc')), [65, 3, 3, 1, 2, 5]);
+  // The 'Zerker takes no wargear but may be gene-smithed; the Sumpkroc is a Beast and takes neither.
+  const zerker = T.rate({ profile: f('goliath', "'Zerker"), cost: { base: 175 } }, { gang: 'goliath', equipmentList: 'none' });
+  assert.ok(zerker.gear.filter(g => g.kind === 'wargear').every(g => !g.available));
+  assert.ok(zerker.gear.filter(g => g.kind === 'gene').every(g => g.available));
+  const kroc = T.rate({ profile: f('goliath', 'Sumpkroc'), geneSmithing: ['ironFlesh'], cost: { base: 65 } }, { gang: 'goliath', equipmentList: 'none', geneSmithing: false });
+  assert.ok(kroc.gear.filter(g => g.kind === 'gene').every(g => !g.available && /Beasts/.test(g.availabilityNote)));
+  assert.ok(kroc.problems.some(p => /Beasts take no gene-smithing/.test(p)));
+  // The core fighters recur in the variant gangs with those lists.
+  for (const gang of ['furnaceBrutes', 'unborn']) {
+    for (const name of ['Forge Boss', 'Stimmer', 'Bruiser', 'Forge-Born', 'Bully', "'Zerker", 'Sumpkroc']) {
+      const x = f(gang, name);
+      assert.ok(x, `${name} in ${gang}`);
+      assert.deepEqual(line(x), line(f('goliath', name)));
+      assert.ok(x.equipmentList === gang || x.equipmentList === 'none');
+    }
+  }
   // House of Chains: cost, S, T, W, I, Sv.
   assert.deepEqual(line(f('goliath', 'Forge Breaker')), [70, 3, 4, 1, 3, 6]);
   assert.deepEqual(line(f('furnaceBrutes', 'Forge Master')), [105, 3, 4, 2, 3, 5]);
@@ -594,7 +620,7 @@ test('rate is pure: same input, same output, and unknown ids are reported not th
   assert.deepEqual(a, b);
   assert.ok(a.problems.some(p => /bogus/.test(p)));
   assert.equal(a.poolVersion, 'v1');
-  assert.deepEqual(a.options, { endState: 'down', opponent: 'referenceGang', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar' });
+  assert.deepEqual(a.options, { endState: 'down', opponent: 'referenceGang', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar', geneSmithing: false });
   assert.equal(T.rate({ profile: CHAMPION }, { cover: 0 }).options.cover, 0);
   assert.equal(T.rate({ profile: CHAMPION }, { cover: '2' }).options.cover, 2);
 });

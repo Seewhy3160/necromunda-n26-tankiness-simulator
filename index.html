@@ -926,28 +926,55 @@ const Tankiness = (function (Engine, Data) {
         VS('vsArachniRig', "Ash Wastes 'Arachni-Rig'", 'Vehicle (Skimmer, Walker, Hybrid, Loner)', 275, 4, 4, 4, 5, 3,
           { equipmentList: 'none', vehicle: true, note: 'vehicle: Toxin wounds it only on a 6; cannot buy or be given wargear; weapon options go under weapons' })
       ] },
+    /* House Goliath gang list, pp48-54, plus the House of Chains additions.
+       The core fighters recur in the variant gangs with those gangs' lists. */
     goliath: { id: 'goliath', name: 'House Goliath', equipmentList: 'goliath', tradingPostAtCreation: false, geneSmithing: true,
       fighters: [
+        GO('goTyrant', 'Forge Tyrant', 'Leader', 140, 4, 3, 5, 3, 4, 'goliath'),
+        GO('goBoss', 'Forge Boss', 'Champion', 100, 4, 2, 5, 3, 3, 'goliath'),
+        GO('goStimmer', 'Stimmer', 'Champion, Loner', 120, 4, 2, 5, 4, 4, 'goliath'),
+        GO('goBruiser', 'Bruiser', 'Ganger, Specialist', 45, 4, 1, 6, 3, 3, 'goliath'),
         GO('goBreaker', 'Forge Breaker', 'Ganger', 70, 4, 1, 6, 3, 3, 'goliath'),
         GO('goGunner', 'Forge Gunner', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath'),
         GO('goHauler', 'Forge Hauler', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath'),
-        GO('goPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath')
+        GO('goPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'goliath'),
+        GO('goForgeBorn', 'Forge-Born', 'Prospect', 35, 4, 1, 6, 3, 3, 'goliath', { skills: ['ironJaw'], note: 'has Iron Jaw' }),
+        GO('goBully', 'Bully', 'Prospect', 25, 4, 1, 6, 3, 3, 'goliath'),
+        GO('goZerker', "'Zerker", 'Brute, Loner', 175, 5, 4, 6, 6, 2, 'none',
+          { note: 'no wargear beyond its recruitment options (mutated fists +45, stimm-slug stash +25, under weapons / other); gene-smithing allowed' }),
+        GO('goSumpkroc', 'Sumpkroc', 'Beast, Pet', 65, 3, 1, 5, 3, 2, 'none', { beast: true, note: 'cannot buy or be given any wargear; Beasts take no gene-smithing' })
       ] },
     furnaceBrutes: { id: 'furnaceBrutes', name: 'Furnace Brutes (Goliath)', equipmentList: 'furnaceBrutes', tradingPostAtCreation: true, geneSmithing: true,
       fighters: [
         GO('fbDespot', 'Forge Despot', 'Leader', 140, 4, 3, 5, 3, 4, 'furnaceBrutes'),
+        GO('fbBoss', 'Forge Boss', 'Champion', 100, 4, 2, 5, 3, 3, 'furnaceBrutes'),
         GO('fbMaster', 'Forge Master', 'Champion', 105, 4, 2, 5, 3, 3, 'furnaceBrutes', { note: 'may take a second gene-smithing option' }),
+        GO('fbStimmer', 'Stimmer', 'Champion, Loner', 120, 4, 2, 5, 4, 4, 'furnaceBrutes'),
         GO('fbBreaker', 'Forge Breaker', 'Ganger', 70, 4, 1, 6, 3, 3, 'furnaceBrutes'),
         GO('fbHauler', 'Forge Hauler', 'Ganger', 60, 4, 1, 6, 3, 3, 'furnaceBrutes'),
-        GO('fbPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'furnaceBrutes')
+        GO('fbPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'furnaceBrutes'),
+        GO('fbBruiser', 'Bruiser', 'Ganger, Specialist', 45, 4, 1, 6, 3, 3, 'furnaceBrutes'),
+        GO('fbForgeBorn', 'Forge-Born', 'Prospect', 35, 4, 1, 6, 3, 3, 'furnaceBrutes', { skills: ['ironJaw'], note: 'has Iron Jaw' }),
+        GO('fbBully', 'Bully', 'Prospect', 25, 4, 1, 6, 3, 3, 'furnaceBrutes'),
+        GO('fbZerker', "'Zerker", 'Brute, Loner', 175, 5, 4, 6, 6, 2, 'none',
+          { note: 'no wargear beyond its recruitment options (mutated fists +45, stimm-slug stash +25, under weapons / other); gene-smithing allowed' }),
+        GO('fbSumpkroc', 'Sumpkroc', 'Beast, Pet', 65, 3, 1, 5, 3, 2, 'none', { beast: true, note: 'cannot buy or be given any wargear; Beasts take no gene-smithing' })
       ] },
     unborn: { id: 'unborn', name: 'Unborn (Goliath)', equipmentList: 'unborn', tradingPostAtCreation: false, geneSmithing: true,
       fighters: [
         GO('ubDoc', 'Unborn Doc', 'Leader', 145, 4, 3, 5, 3, 4, 'unborn'),
         GO('ubTwiceBorn', 'Twice Born', 'Champion', 100, 4, 2, 5, 3, 3, 'unborn'),
+        GO('ubBoss', 'Forge Boss', 'Champion', 100, 4, 2, 5, 3, 3, 'unborn'),
+        GO('ubStimmer', 'Stimmer', 'Champion, Loner', 120, 4, 2, 5, 4, 4, 'unborn'),
         GO('ubMalformed', 'Malformed', 'Brute, Loner', 80, 4, 2, 6, 4, 2, 'unborn'),
         GO('ubGunner', 'Forge Gunner', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn'),
-        GO('ubPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn')
+        GO('ubPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn'),
+        GO('ubBruiser', 'Bruiser', 'Ganger, Specialist', 45, 4, 1, 6, 3, 3, 'unborn'),
+        GO('ubForgeBorn', 'Forge-Born', 'Prospect', 35, 4, 1, 6, 3, 3, 'unborn', { skills: ['ironJaw'], note: 'has Iron Jaw' }),
+        GO('ubBully', 'Bully', 'Prospect', 25, 4, 1, 6, 3, 3, 'unborn'),
+        GO('ubZerker', "'Zerker", 'Brute, Loner', 175, 5, 4, 6, 6, 2, 'none',
+          { note: 'no wargear beyond its recruitment options (mutated fists +45, stimm-slug stash +25, under weapons / other); gene-smithing allowed' }),
+        GO('ubSumpkroc', 'Sumpkroc', 'Beast, Pet', 65, 3, 1, 5, 3, 2, 'none', { beast: true, note: 'cannot buy or be given any wargear; Beasts take no gene-smithing' })
       ] },
     /* House Delaque gang list, pp24-30. */
     delaque: { id: 'delaque', name: 'House Delaque', equipmentList: 'delaque', tradingPostAtCreation: false, geneSmithing: false,
@@ -1218,6 +1245,8 @@ const Tankiness = (function (Engine, Data) {
     if (opts.gang && !gang) throw new Error('unknown gang ' + opts.gang);
     if (opts.equipmentList === undefined) opts.equipmentList = gang ? gang.equipmentList : null;
     opts.gangDef = gang;
+    // Gene-smithing follows the gang, except that Beasts never take it (House of Chains p40).
+    opts.geneSmithing = o.geneSmithing === undefined ? !!(gang && gang.geneSmithing) : !!o.geneSmithing;
     return opts;
   }
 
@@ -1300,14 +1329,14 @@ const Tankiness = (function (Engine, Data) {
   function availability(item, opts) {
     const gang = opts.gangDef;
     if (item.kind === 'skill') return { status: 'skill', available: true, note: item.set + ' skill' };
+    if (item.kind === 'gene') {
+      return opts.geneSmithing
+        ? { status: 'recruitment', available: true, note: 'gene-smithing, at recruitment only' }
+        : { status: 'unavailable', available: false, note: gang && gang.geneSmithing ? 'Beasts take no gene-smithing' : 'Goliath gene-smithing only' };
+    }
     const locked = opts.equipmentList && EQUIPMENT_LISTS[opts.equipmentList] && EQUIPMENT_LISTS[opts.equipmentList].locked;
     if (locked) return { status: 'unavailable', available: false, note: 'this fighter cannot buy or be given wargear' };
     if (item.weapon) return { status: 'weapon', available: true, note: 'depends on the weapon carried' };
-    if (item.kind === 'gene') {
-      return gang && gang.geneSmithing
-        ? { status: 'recruitment', available: true, note: 'gene-smithing, at recruitment only' }
-        : { status: 'unavailable', available: false, note: 'Goliath gene-smithing only' };
-    }
     const list = opts.equipmentList ? EQUIPMENT_LISTS[opts.equipmentList] : null;
     if (!list) return { status: 'unknown', available: true, note: 'Equipment List not transcribed' };
     const entry = list.items[item.id];
@@ -1348,8 +1377,10 @@ const Tankiness = (function (Engine, Data) {
         ? 'More than one item of armour is selected; a fighter may wear only one (p158), and only the refractor field combines with it. The effects are stacked here.'
         : 'Both servo-harness sizes are selected; a fighter wears one. The bonuses are stacked here.');
     }
-    if (opts.gangDef && !opts.gangDef.geneSmithing && selected.some(x => x.kind === 'gene')) {
-      problems.push('Gene-smithing is a Goliath option; it is rated here but marked unavailable.');
+    if (!opts.geneSmithing && selected.some(x => x.kind === 'gene')) {
+      problems.push(opts.gangDef && opts.gangDef.geneSmithing
+        ? 'Beasts take no gene-smithing; it is rated here but marked unavailable.'
+        : 'Gene-smithing is a Goliath option; it is rated here but marked unavailable.');
     }
 
     const base = baseline(opts);
@@ -1452,7 +1483,7 @@ const Tankiness = (function (Engine, Data) {
       problems: problems, notes: notes, unmodelled: unmodelled,
       poolVersion: opts.pool.version,
       options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover,
-                 gang: opts.gang, equipmentList: opts.equipmentList }
+                 gang: opts.gang, equipmentList: opts.equipmentList, geneSmithing: opts.geneSmithing }
     };
   }
 
@@ -1707,6 +1738,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     setControl(root, 't.S', f.S);
     setControl(root, 't.I', f.I);
     setControl(root, 't.vehicle', !!f.vehicle);
+    // Skills the fighter comes with (the Forge-Born's Iron Jaw) are ticked; the rest cleared.
+    for (const sk of Tankiness.SKILLS) setControl(root, 'g.' + sk.id, !!(f.skills && f.skills.indexOf(sk.id) >= 0));
     if (f.cost != null) setControl(root, 'c.base', f.cost);
   }
 
@@ -1860,7 +1893,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
         cost: { base: st.c.base, weapons: st.c.weapons, other: st.c.other }
       }, {
         mode: st.o.mode, opponent: st.o.opponent, cover: st.o.cover, endState: st.o.endState,
-        gang: st.pick.gang, equipmentList: fighter ? fighter.equipmentList : gang.equipmentList
+        gang: st.pick.gang, equipmentList: fighter ? fighter.equipmentList : gang.equipmentList,
+        geneSmithing: fighter && fighter.beast ? false : undefined
       });
       show(root, res, { fighter: fighter, gang: gang });
     }
