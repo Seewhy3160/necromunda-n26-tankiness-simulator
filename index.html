@@ -1610,7 +1610,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     gearBody.innerHTML = '';
     for (const g of gear) {
       const tr = el('tr', { class: (g.selected ? 'on ' : '') + (g.available ? '' : 'unavail') });
-      const from = (g.available ? '' : 'Not available: ') + (g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : ''));
+      // The dimmed row already says "not available"; keep only the reason, briefly.
+      const from = (g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : '')).replace(/;\s*not on the .* list$/, '');
       tr.appendChild(el('td', { title: g.text }, el('span', { text: g.name }), el('span', { class: 'src', text: from })));
       tr.appendChild(td(g.cost ? (g.cost > 0 ? g.cost + 'c' : g.cost + 'c') : '–'));
       tr.appendChild(td(signed(g.dHits, 2), cls(g.dHits)));
