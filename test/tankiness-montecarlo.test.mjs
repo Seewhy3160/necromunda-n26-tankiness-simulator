@@ -156,7 +156,7 @@ const MIX_CASES = [
 for (const [name, profile, ids, opponent, o] of MIX_CASES) {
   test(`monte carlo, hits to Down from the weapon mix: ${name}`, () => {
     const r = T.rate({ profile: Object.assign({ S: 3, I: 4, inv: 0 }, profile), wargear: ids.filter(id => T.WARGEAR.some(w => w.id === id)),
-      skills: ids.filter(id => T.SKILLS.some(s => s.id === id)) }, Object.assign({ opponent, gang: null }, o));
+      skills: ids.filter(id => T.SKILLS.some(s => s.id === id)) }, Object.assign({ opponent, gang: null, cover: 0 }, o));
     const opts = Object.assign({ endState: 'down', cover: 0 }, o);
     const sim = simulate(mixPicker(opponent), tgt(profile, ids), opts, TRIALS, seed += 0x85ebca6b);
     assert.ok(Math.abs(r.hitsToDown - sim) / r.hitsToDown < TOL,

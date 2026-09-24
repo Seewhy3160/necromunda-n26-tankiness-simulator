@@ -82,9 +82,10 @@ legend{font:600 12px/1 inherit;text-transform:uppercase;letter-spacing:.8px;colo
 /* tables */
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:4px}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th,td{padding:6px 7px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{white-space:normal;vertical-align:bottom;line-height:1.25}
 th:first-child,td:first-child{text-align:left}
-td:first-child{white-space:normal;min-width:150px;padding-right:12px}
+td:first-child,td:nth-child(2):has(.src){white-space:normal;min-width:150px;padding-right:12px;text-align:left}
 td .src{display:block;font-size:11px;line-height:1.3;color:var(--ink-faint);margin-top:1px}
 td .src:empty{display:none}
 th{color:var(--ink-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
@@ -769,6 +770,7 @@ const Tankiness = (function (Engine, Data) {
   const ROLES = [
     { id: 'leaderKiller', name: 'Leader killer' },
     { id: 'special', name: 'Leader killer + special' },
+    { id: 'bolt', name: 'Common bolt' },
     { id: 'template', name: 'Common template' },
     { id: 'throwaway', name: 'Common throwaway' },
     { id: 'melee', name: 'Melee' }
@@ -787,10 +789,21 @@ const Tankiness = (function (Engine, Data) {
     return p;
   }
 
-  function profileOf(id, name, role, family, src, cost) {
+  /* The attacker package behind each pool weapon: who typically carries it,
+     what the pair costs, and how many hits it lands on one target per battle
+     at the weapon's range. hitsPerBattle = activations in range x hits per
+     shot x ammo uptime (0.55 for Ammo (6+), from the attack simulator's
+     analysis; 1 for las). These are stated assumptions, shown on the page
+     and overridable through a custom pool. */
+  function attacker(carrier, carrierCost, weaponCost, hitsPerBattle, basis) {
+    return { carrier: carrier, carrierCost: carrierCost, weaponCost: weaponCost,
+             cost: carrierCost + weaponCost, hitsPerBattle: hitsPerBattle, basis: basis };
+  }
+
+  function profileOf(id, name, role, family, src, cost, atk) {
     const tr = src.traits;
     return {
-      id: id, name: name, role: role, family: family, source: src.name, cost: cost,
+      id: id, name: name, role: role, family: family, source: src.name, cost: cost, attacker: atk,
       str: attackerStr(src.str), ap: src.ap, lethality: src.lethality || 0, damage: tr.damage,
       toxin: tr.toxin, rending: tr.rending, shred: tr.shred, breaching: tr.breaching, blaze: tr.blaze,
       gas: tr.gas, web: tr.web, flash: tr.flash, graviton: tr.graviton,
@@ -810,21 +823,31 @@ const Tankiness = (function (Engine, Data) {
        rating: how much an attacker paid for a hit says nothing about how well
        the target absorbs it. */
     profiles: [
-      profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun'), '140'),
-      profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun'), '85 / 70'),
-      profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer'), '45'),
-      profileOf('lasStub',    'Laspistol / stub gun',     'throwaway',    'las',    fromData(Data.ranged, 'Laspistol'), '5'),
-      profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife'), '25'),
-      profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword'), '20'),
-      profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword'), '40'),
-      profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER, '25')
+      profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun'), '140',
+        attacker('Champion (BS 3+)', 100, 140, 1.5 * (4 / 6) * 0.55, '6"/12": in range on 1.5 of 4 shooting activations; Ammo (6+)')),
+      profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun'), '85 / 70',
+        attacker('Champion (BS 3+)', 100, 85, 3 * (4 / 6) * (10 / 6) * 0.55, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (6+)')),
+      profileOf('boltgun',    'Boltgun / bolt pistol',    'bolt',         'bolt',   fromData(Data.ranged, 'Boltgun'), '55 / 45',
+        attacker('Ganger (BS 4+)', 40, 55, 3 * (3 / 6) * (10 / 6) * 0.75, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (3+)')),
+      profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer'), '45',
+        attacker('Ganger (BS 4+)', 40, 45, 1.5 * 1 * 0.55, 'template: auto-hit on 1.5 of 4 activations; Ammo (6+)')),
+      profileOf('lasStub',    'Lasgun / laspistol / autogun / stub gun', 'throwaway', 'las', fromData(Data.ranged, 'Laspistol'), '15 / 5',
+        attacker('Ganger (BS 4+)', 40, 15, 3.5 * (3 / 6) * 1, 'lasgun 16"/24": in range on 3.5 of 4 activations; no ammo roll')),
+      profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife'), '25',
+        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 'one charge a battle, 2 Attack dice')),
+      profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword'), '20',
+        attacker('Champion (WS 3+)', 100, 20, 1 * 3 * (4 / 6), 'one charge a battle, 3 Attack dice')),
+      profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword'), '40',
+        attacker('Champion (WS 3+)', 100, 40, 1 * 3 * (4 / 6), 'one charge a battle, 3 Attack dice')),
+      profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER, '25',
+        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 'one charge a battle, 2 Attack dice'))
     ],
     /* Named opponent profiles: how much of the pool each role carries. */
     weights: {
-      default:     { leaderKiller: 0.10, special: 0.30, template: 0.20, throwaway: 0.20, melee: 0.20 },
-      plasmaMelta: { leaderKiller: 0.25, special: 0.35, template: 0.10, throwaway: 0.10, melee: 0.20 },
-      meleeRush:   { leaderKiller: 0.05, special: 0.15, template: 0.10, throwaway: 0.20, melee: 0.50 },
-      volumeFire:  { leaderKiller: 0.05, special: 0.15, template: 0.30, throwaway: 0.40, melee: 0.10 }
+      default:     { leaderKiller: 0.08, special: 0.22, bolt: 0.15, template: 0.15, throwaway: 0.20, melee: 0.20 },
+      plasmaMelta: { leaderKiller: 0.20, special: 0.30, bolt: 0.15, template: 0.05, throwaway: 0.10, melee: 0.20 },
+      meleeRush:   { leaderKiller: 0.05, special: 0.10, bolt: 0.10, template: 0.05, throwaway: 0.20, melee: 0.50 },
+      volumeFire:  { leaderKiller: 0.05, special: 0.10, bolt: 0.15, template: 0.25, throwaway: 0.35, melee: 0.10 }
     }
   };
   const OPPONENTS = [
@@ -1162,7 +1185,9 @@ const Tankiness = (function (Engine, Data) {
       endState: o.endState === 'ooa' ? 'ooa' : 'down',
       opponent: o.opponent || 'default',
       mode: o.mode === 'campaign' ? 'campaign' : 'creation',
-      cover: clamp(parseInt(o.cover, 10) || 0, 0, 2),
+      // Fighters use cover: +1 to armour saves within the weapon's short range
+      // is the default; 0 is open ground, 2 is long-range cover (p76).
+      cover: clamp(o.cover === undefined || o.cover === null ? 1 : (parseInt(o.cover, 10) || 0), 0, 2),
       gang: o.gang === undefined ? 'vanSaar' : o.gang,
       equipmentList: o.equipmentList
     };
@@ -1174,15 +1199,25 @@ const Tankiness = (function (Engine, Data) {
     return opts;
   }
 
-  /* Hits to Down against each weapon on its own, and against the mix. */
+  /* Hits to Down against each weapon on its own and against the mix, and
+     the enemy credits each weapon's package must spend over a battle to get
+     there. The headline is the enemy's cheapest option: nobody points a
+     meltagun at a 30-credit fighter when a lasgun does it for a fifth of
+     the cost, and a hit that Downs a 1-Wound fighter with three Wounds of
+     damage to spare is priced exactly as dearly as one that needed them. */
   function score(profile, items, opts) {
     const t = effectiveTarget(profile, items);
     const per = opts.pool.profiles.map(p => {
       const r = hitsToDown(p, t, opts);
-      return { id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, hits: r.hits, pDownFirst: r.pDownFirst };
+      const a = p.attacker;
+      const ecd = a && a.hitsPerBattle > 0 ? a.cost * r.hits / a.hitsPerBattle : null;
+      return { id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, attacker: a,
+               hits: r.hits, pDownFirst: r.pDownFirst, enemyCredits: ecd };
     });
     const mix = expectedHits(opts.pool.profiles.map((p, i) => ({ prof: p, weight: opts.weights[i] })), t, opts);
-    return { target: t, per: per, mix: mix };
+    let best = null;
+    for (const p of per) if (p.enemyCredits != null && (best === null || p.enemyCredits < best.enemyCredits)) best = p;
+    return { target: t, per: per, mix: mix, best: best };
   }
 
   function geoMean(values, weights) {
@@ -1267,6 +1302,7 @@ const Tankiness = (function (Engine, Data) {
        enemy weapon mix. TI is the same figure relative to a plain Ganger. */
     const hits = main.mix.hits;
     const ti = 100 * hits / base.mix.hits;
+    const enemyCredits = main.best ? main.best.enemyCredits : null;
 
     const c = fighter.cost || {};
     const cost = {
@@ -1275,11 +1311,13 @@ const Tankiness = (function (Engine, Data) {
     };
     cost.total = cost.base + cost.weapons + cost.other + cost.defensive;
     const hitsPer100 = cost.total > 0 ? 100 * hits / cost.total : null;
+    const enemyCreditsPer100 = cost.total > 0 && enemyCredits != null ? 100 * enemyCredits / cost.total : null;
     const tp100 = cost.total > 0 ? 100 * ti / cost.total : null;
 
     const perProfile = main.per.map((p, i) => ({
-      id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, weight: weights[i],
-      hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base.per[i].hits, gangerHits: base.per[i].hits
+      id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, weight: weights[i], attacker: p.attacker,
+      hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base.per[i].hits, gangerHits: base.per[i].hits,
+      enemyCredits: p.enemyCredits, cheapest: main.best === p
     }));
 
     /* Marginal value of every rateable item, selected or not. For an item in
@@ -1291,9 +1329,13 @@ const Tankiness = (function (Engine, Data) {
       const sWithout = !on ? main : score(profile, withoutSel, opts);
       const hitsWith = sWith.mix.hits, hitsWithout = sWithout.mix.hits;
       const tiWith = 100 * hitsWith / base.mix.hits, tiWithout = 100 * hitsWithout / base.mix.hits;
-      const ratio = hitsWith / hitsWithout;
       const dHits = hitsWith - hitsWithout;
       const dTi = tiWith - tiWithout;
+      // The marginal that matters is in enemy credits, against whichever
+      // tool the enemy would switch to once the item is on.
+      const ecdWith = sWith.best ? sWith.best.enemyCredits : null, ecdWithout = sWithout.best ? sWithout.best.enemyCredits : null;
+      const ratio = ecdWith != null && ecdWithout > 0 ? ecdWith / ecdWithout : hitsWith / hitsWithout;
+      const dEnemyCredits = ecdWith != null && ecdWithout != null ? ecdWith - ecdWithout : null;
       const g = it.cost || 0;
       // Break-even cost C*: the rest of the fighter must be worth more than
       // this (or less, for an item that saves credits) for TP100 to improve.
@@ -1310,6 +1352,9 @@ const Tankiness = (function (Engine, Data) {
       return {
         id: it.id, name: it.name, kind: it.kind, group: it.group || it.kind, cost: g, text: it.text,
         selected: on, available: av.available, availability: av.status, availabilityNote: av.note,
+        enemyCreditsWith: ecdWith, enemyCreditsWithout: ecdWithout, dEnemyCredits: dEnemyCredits,
+        dEnemyCreditsPer100: g > 0 && dEnemyCredits != null ? 100 * dEnemyCredits / g : null,
+        bestToolWith: sWith.best ? sWith.best.id : null,
         hitsWith: hitsWith, hitsWithout: hitsWithout, dHits: dHits, dHitsPer100: g > 0 ? 100 * dHits / g : null,
         tiWith: tiWith, tiWithout: tiWithout, dTi: dTi, ratio: ratio,
         dTp100: g > 0 ? 100 * dTi / g : null,
@@ -1336,6 +1381,8 @@ const Tankiness = (function (Engine, Data) {
     }
 
     return {
+      enemyCredits: enemyCredits, enemyCreditsPer100: enemyCreditsPer100,
+      bestTool: main.best ? { id: main.best.id, name: main.best.name, attacker: main.best.attacker, hits: main.best.hits } : null,
       hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
       ti: ti, tp100: tp100, gangerHits: base.mix.hits,
       cost: cost, perProfile: perProfile,
@@ -1457,9 +1504,10 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
   const GANG_OPTS = Object.keys(Tankiness.GANGS).map(id => [id, Tankiness.GANGS[id].name]);
   const MODE = [['creation', 'Gang creation (Equipment List only)'], ['campaign', 'Campaign (list + Trading Post)']];
   const OPPONENT = Tankiness.OPPONENTS.map(o => [o.id, o.name]);
-  const COVER = [[0, 'none'], [1, '+1 to armour saves'], [2, '+2 to armour saves']];
+  const COVER = [[1, '+1: in cover at short range (default)'], [0, 'none: open ground'], [2, '+2: in cover at long range']];
   const END = [['down', 'Seriously Injured or Out of Action'], ['ooa', 'Out of Action only']];
-  const ROLE_LABEL = { leaderKiller: 'Melta', special: 'Plasma', template: 'Flamer', throwaway: 'Las / stub', melee: 'Melee' };
+  const ROLE_LABEL = { leaderKiller: 'Melta', special: 'Plasma', bolt: 'Bolt', template: 'Flamer', throwaway: 'Las / stub', melee: 'Melee' };
+  const ROLE_ORDER = ['leaderKiller', 'special', 'bolt', 'template', 'throwaway', 'melee'];
 
   function fighterOpts(gangId) {
     const g = Tankiness.GANGS[gangId];
@@ -1474,8 +1522,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       el('div', { class: 'k', text: label }));
     return el('div', { class: 'results' },
       el('div', { class: 'odds' },
-        mk('ti', 'hits', 'Hits to Down'),
-        mk('tp', 'hitsPer100', 'Hits per 100 credits'),
+        mk('ti', 'ecd', 'Enemy credits to Down'),
+        mk('tp', 'ecdPer100', 'Enemy credits per 100c'),
         mk('cr', 'total', 'Total credits')),
       el('div', { class: 'minor', 'data-minor': '1' }),
       el('div', { class: 'warn hidden', 'data-warn': '1' }),
@@ -1514,40 +1562,45 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.appendChild(group('Gene-smithing (Goliath, at recruitment)', chipRow(null, Tankiness.GENE_SMITHING)));
     root.appendChild(group('Scenario',
       field('Opponent profile', 'o.opponent', OPPONENT, 'default', 'How much of the pool each weapon role carries.'),
-      field('Cover', 'o.cover', COVER, 0, 'Applies to armour saves against shooting; invulnerable saves ignore it.'),
+      field('Cover', 'o.cover', COVER, 1, 'Applies to armour saves against shooting (p76); invulnerable saves ignore it.'),
       field('Down means', 'o.endState', END, 'down')));
     root.appendChild(tableBlock('What each item would do',
-      ['Item', 'Cost', 'ΔHits', 'ΔHits / 100c', 'Break-even', 'Melta', 'Plasma', 'Flamer', 'Las / stub', 'Melee'],
+      ['Item', 'ΔEnemy credits', 'Δ per 100c', 'Break-even'].concat(ROLE_ORDER.map(r => ROLE_LABEL[r])),
       'gear',
-      'ΔHits is the change in hits to Down from adding the item (or, for one already on, what dropping it would cost); ' +
-      'ΔHits / 100c is that gain per 100 credits spent on the item. ' +
-      'Break-even is the cost the rest of the fighter must exceed for the item to raise hits per credit. ' +
-      'Role columns are the gain against that weapon class. ● marks items on the fighter.'));
-    root.appendChild(tableBlock('Hits to Down, by weapon',
-      ['Weapon', 'Weapon cost', 'Share of hits', 'Hits to Down', 'Down on 1st hit', 'vs Ganger'],
+      'ΔEnemy credits is how much more the enemy must commit to Down the fighter with the item on (or, for one already on, ' +
+      'how much less without it), against whichever tool is then cheapest for them; Δ per 100c is that gain per 100 credits ' +
+      'spent on the item. Break-even is the cost the rest of the fighter must exceed for the item to raise enemy credits per ' +
+      'credit. Role columns are the gain in hits to Down against that weapon class. ● marks items on the fighter.'));
+    root.appendChild(tableBlock('By weapon: what it costs the enemy',
+      ['Weapon', 'Attacker package', 'Hits per battle', 'Hits to Down', 'Enemy credits to Down', 'Down on first hit', 'vs Ganger'],
       'weapons',
-      'Sorted weakest first: the top row is what this fighter is most exposed to. Weapon cost is the Trading Post ' +
-      'price, for scale; it does not enter the rating.'));
+      'Sorted cheapest for the enemy first: the top row is the tool a sensible opponent uses on this fighter, and the headline. ' +
+      'Enemy credits to Down = package cost × hits to Down ÷ hits per battle. Hits to Down is the target-side figure ' +
+      'the loadout ranker consumes.'));
     root.appendChild(assumptionsBlock());
   }
 
   function assumptionsBlock() {
     const body = el('div', { class: 'body' });
     body.appendChild(el('p', { html:
-      '<b>The rating.</b> Deal the fighter confirmed hits drawn at random from the enemy weapon mix below, ' +
-      'pushing each through the wound roll, the save and the Injury dice, until the fighter is Seriously ' +
-      'Injured or Out of Action. <b>Hits to Down</b> is how many such hits that takes on average, worked out ' +
-      'exactly. <b>Hits per 100 credits</b> divides by base + weapons + other + defensive gear. The per-weapon ' +
-      'table gives the same figure against each weapon on its own; a plain Ganger (T3, W1, Sv 6+) is the ' +
-      '“vs Ganger” reference.' }));
+      '<b>The rating.</b> For each weapon in the pool the fighter is pushed through the wound roll, the save and the ' +
+      'Injury dice hit after hit until it is Seriously Injured or Out of Action; that gives <b>hits to Down</b>, exactly. ' +
+      'Each weapon then has an attacker package (below): a typical carrier plus the weapon, and how many hits it lands ' +
+      'on one target over a battle at its range, ammo included. <b>Enemy credits to Down</b> for a weapon is package cost ' +
+      '× hits to Down ÷ hits per battle: the slice of an enemy gang that has to spend a whole battle on this ' +
+      'fighter. The headline takes the <b>enemy’s cheapest tool</b>, so an expensive weapon only counts where it is ' +
+      'really the best answer, and damage that a hit did not need is priced as dearly as damage it did. ' +
+      '<b>Enemy credits per 100c</b> divides by base + weapons + other + defensive gear: above 100, the fighter costs ' +
+      'the enemy more to remove than it cost you.' }));
+    body.appendChild(el('p', { 'data-attackers': '1' }));
     body.appendChild(el('p', { html:
       '<b>Hits, not attacks.</b> The hit roll is left out on purpose. Weapon Skill, Ballistic Skill, Attacks and ' +
       'Rapid Fire belong to the attacker, so they sit in the damage side of the loadout ranker; this page rates ' +
       'only what the target controls. A refraction cloak therefore shows up as an evasion factor, not in TI.' }));
     body.appendChild(el('p', { 'data-pool': '1' }));
     body.appendChild(el('p', { html:
-      '<b>Fixed scenario for every hit:</b> target Active, no range-band save bonus, cover only as set above ' +
-      '(armour saves only). Only one save is rolled per hit, the best available; a natural 1 or 2 always fails, ' +
+      '<b>Fixed scenario for every hit:</b> target Active, in cover as set above (+1 to armour saves at short range ' +
+      'by default; invulnerable saves ignore cover). Only one save is rolled per hit, the best available; a natural 1 or 2 always fails, ' +
       'so Sv 2+ is no better than 3+ against AP –. The attacker rolls Lethality Injury dice and picks the ' +
       'worst for the target. A Serious Injury does nothing to a fighter already Seriously Injured.' }));
     body.appendChild(el('p', { html:
@@ -1598,17 +1651,18 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
   function td(text, extra) { return el('td', { class: 'num ' + (extra || ''), text: text }); }
 
   function show(root, res, ctx) {
-    root.querySelector('[data-out="hits"]').textContent = res.hitsToDown.toFixed(2);
-    root.querySelector('[data-out="hitsPer100"]').textContent = res.hitsPer100 == null ? '–' : res.hitsPer100.toFixed(2);
+    root.querySelector('[data-out="ecd"]').textContent = res.enemyCredits == null ? '–' : Math.round(res.enemyCredits);
+    root.querySelector('[data-out="ecdPer100"]').textContent = res.enemyCreditsPer100 == null ? '–' : Math.round(res.enemyCreditsPer100);
     root.querySelector('[data-out="total"]').textContent = res.cost.total;
 
-    const weakest = res.perProfile.slice().sort((a, b) => a.hits - b.hits)[0];
-    const bits = [
+    const bits = [];
+    if (res.bestTool) bits.push('Enemy’s cheapest tool <b>' + esc(res.bestTool.name) + '</b> on a ' + esc(res.bestTool.attacker.carrier) +
+      ' (' + res.bestTool.hits.toFixed(2) + ' hits)');
+    bits.push(
+      'Hits to Down from the mix <b>' + res.hitsToDown.toFixed(2) + '</b>',
       'Down on the first hit <b>' + pct(res.pDownFirst) + '</b>',
       'vs a plain Ganger <b>×' + (res.ti / 100).toFixed(2) + '</b>',
-      'Defensive gear <b>' + res.cost.defensive + 'c</b>',
-      'Most exposed to <b>' + esc(weakest.name) + '</b> (' + weakest.hits.toFixed(2) + ' hits)'
-    ];
+      'Defensive gear <b>' + res.cost.defensive + 'c</b>');
     if (res.evasion.ranged < 1) bits.push('Ranged hits kept <b>' + pct(res.evasion.ranged) + '</b>');
     root.querySelector('[data-minor]').innerHTML = bits.join(' · ');
 
@@ -1633,39 +1687,50 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
 
     // gear table: available items first, best value at the top
     const order = (g) => (g.available ? 0 : 1);
-    const gear = res.gear.slice().sort((a, b) => order(a) - order(b) ||
-      ((b.dHitsPer100 == null ? -Infinity : b.dHitsPer100) - (a.dHitsPer100 == null ? -Infinity : a.dHitsPer100)) || b.dHits - a.dHits);
+    const per100 = (g) => g.dEnemyCreditsPer100 == null ? -Infinity : g.dEnemyCreditsPer100;
+    const gear = res.gear.slice().sort((a, b) => order(a) - order(b) || per100(b) - per100(a) || (b.dEnemyCredits || 0) - (a.dEnemyCredits || 0));
     const gearBody = root.querySelector('[data-rows="gear"]');
     gearBody.innerHTML = '';
     for (const g of gear) {
       const tr = el('tr', { class: (g.selected ? 'on ' : '') + (g.available ? '' : 'unavail') });
       // The dimmed row already says "not available"; keep only the reason, briefly.
       const from = (g.availabilityNote || (g.availability === 'list' ? 'Equipment List' : '')).replace(/;\s*not on the .* list$/, '');
-      tr.appendChild(el('td', { title: g.text }, el('span', { text: g.name }), el('span', { class: 'src', text: from })));
-      tr.appendChild(td(g.cost ? (g.cost > 0 ? g.cost + 'c' : g.cost + 'c') : '–'));
-      tr.appendChild(td(signed(g.dHits, 2), cls(g.dHits)));
-      tr.appendChild(td(g.dHitsPer100 == null ? '–' : signed(g.dHitsPer100, 2), g.dHitsPer100 == null ? 'zero' : cls(g.dHitsPer100)));
+      const costText = g.cost ? (g.cost > 0 ? g.cost + 'c' : 'saves ' + (-g.cost) + 'c') : 'no cost';
+      tr.appendChild(el('td', { title: g.text }, el('span', { text: g.name }), el('span', { class: 'src', text: costText + (from ? ' · ' + from : '') })));
+      const dE = g.dEnemyCredits == null ? 0 : g.dEnemyCredits;
+      tr.appendChild(td(g.dEnemyCredits == null ? '–' : signed(dE, 0), cls(dE)));
+      tr.appendChild(td(g.dEnemyCreditsPer100 == null ? '–' : signed(g.dEnemyCreditsPer100, 0), g.dEnemyCreditsPer100 == null ? 'zero' : cls(g.dEnemyCreditsPer100)));
       tr.appendChild(td(g.breakEven == null ? '–' : (g.breakEvenDirection === 'below' ? '< ' : '') + credits(g.breakEven)));
-      for (const r of ['leaderKiller', 'special', 'template', 'throwaway', 'melee']) {
+      for (const r of ROLE_ORDER) {
         const v = g.byRole[r] || 0;
         tr.appendChild(td(gainPct(v), cls(v)));
       }
       gearBody.appendChild(tr);
     }
 
-    // per-weapon table, weakest first
+    // per-weapon table, cheapest for the enemy first
     const wBody = root.querySelector('[data-rows="weapons"]');
     wBody.innerHTML = '';
-    for (const p of res.perProfile.slice().sort((a, b) => a.hits - b.hits)) {
-      const tr = el('tr');
-      tr.appendChild(el('td', { text: p.name }));
-      tr.appendChild(td(p.cost ? p.cost + 'c' : '–'));
-      tr.appendChild(td(pct(p.weight)));
+    const byCost = (a, b) => (a.enemyCredits == null ? Infinity : a.enemyCredits) - (b.enemyCredits == null ? Infinity : b.enemyCredits);
+    for (const p of res.perProfile.slice().sort(byCost)) {
+      const tr = el('tr', { class: p.cheapest ? 'on' : '' });
+      tr.appendChild(el('td', {}, el('span', { text: p.name }), el('span', { class: 'src', text: (p.cost ? p.cost + 'c · ' : '') + pct(p.weight) + ' of the mix' })));
+      tr.appendChild(el('td', {}, el('span', { text: p.attacker ? p.attacker.carrier + ' · ' + p.attacker.cost + 'c' : '–' }),
+        el('span', { class: 'src', text: p.attacker ? p.attacker.basis : '' })));
+      tr.appendChild(td(p.attacker ? p.attacker.hitsPerBattle.toFixed(2) : '–'));
       tr.appendChild(td(p.hits.toFixed(2)));
+      tr.appendChild(td(p.enemyCredits == null ? '–' : String(Math.round(p.enemyCredits))));
       tr.appendChild(td(pct(p.pDownFirst)));
       tr.appendChild(td('×' + p.vsGanger.toFixed(2), cls(p.vsGanger - 1)));
       wBody.appendChild(tr);
     }
+
+    // attacker packages in the assumptions block
+    root.querySelector('[data-attackers]').innerHTML = '<b>Attacker packages</b> (carrier + weapon, hits per battle on one target): ' +
+      res.perProfile.map(p => esc(p.name) + ': ' + esc(p.attacker.carrier) + ' + ' + p.attacker.weaponCost + 'c = ' + p.attacker.cost +
+        'c, ' + p.attacker.hitsPerBattle.toFixed(2) + ' hits (' + esc(p.attacker.basis) + ')').join('; ') +
+      '. Ammo (6+) uptime is taken as 0.55. Carrier costs are round figures for a typical ganger or champion. ' +
+      'These are assumptions, not rules; a custom pool can replace them.';
 
     // profile line for the picked fighter
     const line = root.querySelector('[data-profile]');

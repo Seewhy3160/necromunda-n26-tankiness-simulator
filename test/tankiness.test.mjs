@@ -11,7 +11,8 @@ const prof = (id) => { const p = pool.profiles.find(x => x.id === id); assert.ok
 const opts = (o = {}) => Object.assign({ endState: 'down', cover: 0 }, o);
 const tgt = (profile, items = []) => T.effectiveTarget(Object.assign({ S: 3, I: 4, inv: 0 }, profile), items.map(id => T.ITEMS.find(x => x.id === id)));
 const hits = (profile, weapon, items = [], o = {}) => T.hitsToDown(prof(weapon), tgt(profile, items), opts(o)).hits;
-const rate = (profile, extra = {}, o = {}) => T.rate(Object.assign({ profile, cost: { base: 30 } }, extra), o);
+/* The hand-worked figures below are on open ground; the page defaults to +1 cover. */
+const rate = (profile, extra = {}, o = {}) => T.rate(Object.assign({ profile, cost: { base: 30 } }, extra), Object.assign({ cover: 0 }, o));
 
 const GANGER = { T: 3, W: 1, sv: 6 };
 const CHAMPION = { T: 3, W: 2, sv: 5 };
@@ -44,10 +45,12 @@ test('the pool weights sum to one for every opponent profile', () => {
     near(w.reduce((a, b) => a + b, 0), 1);
     assert.equal(w.length, pool.profiles.length);
   }
-  // The default mix is the design's role table: 1/10, 3/10, 1/5, 1/5 and 4 x 1/20.
+  // The default mix by role, with each role's share split over its profiles.
   const d = T.poolWeights(pool, 'default');
-  near(d[0], 0.1); near(d[1], 0.3); near(d[2], 0.2); near(d[3], 0.2);
-  for (let i = 4; i < 8; i++) near(d[i], 0.05);
+  const byId = Object.fromEntries(pool.profiles.map((p, i) => [p.id, d[i]]));
+  near(byId.meltagun, 0.08); near(byId.plasma, 0.22); near(byId.boltgun, 0.15); near(byId.handFlamer, 0.15); near(byId.lasStub, 0.20);
+  for (const id of ['stiletto', 'chainsword', 'powerSword', 'cleaver']) near(byId[id], 0.05);
+  assert.equal(pool.profiles.length, 9);
 });
 
 test('the pool is built from the pinned Trading Post tables, and merged profiles really match', () => {
@@ -62,6 +65,9 @@ test('the pool is built from the pinned Trading Post tables, and merged profiles
   assert.deepEqual([m.str, m.ap, m.lethality, m.damage], [8, -4, 3, 3]);
   const c = prof('cleaver');
   assert.deepEqual([c.str, c.ap, c.lethality, c.melee], [3, -1, 2, true]);   // House of Chains p54, at S3
+  const b = prof('boltgun');
+  assert.deepEqual([b.str, b.ap, b.lethality, b.damage], [4, -1, 2, 1]);   // p154
+  same('Boltgun', 'Bolt pistol');
   const s = prof('stiletto');
   assert.deepEqual([s.str, s.toxin, s.melee], [null, 3, true]);
   assert.equal(prof('handFlamer').template, true);
@@ -345,7 +351,13 @@ test('each item reports its marginal TI whether it is on the fighter or not', ()
   near(gOff.dTi, on.ti - off.ti);
   near(gOn.dTi, on.ti - off.ti);
   near(gOff.dTp100, 100 * gOff.dTi / 50);
-  near(gOff.ratio, on.hitsToDown / off.hitsToDown);
+  near(gOff.dEnemyCredits, on.enemyCredits - off.enemyCredits);
+  near(gOff.dEnemyCreditsPer100, 100 * gOff.dEnemyCredits / 50);
+  near(gOff.ratio, on.enemyCredits / off.enemyCredits);
+  // With the field on, plasma is no longer the enemy's cheapest tool: a no-AP-heavy bolter ganger is.
+  assert.equal(off.bestTool.id, 'plasma');
+  assert.equal(on.bestTool.id, 'boltgun');
+  assert.equal(gOff.bestToolWith, on.bestTool.id);
   assert.ok(gOn.byRole.leaderKiller > 0.4 && gOn.byRole.template === 0, JSON.stringify(gOn.byRole));
 });
 
@@ -362,19 +374,19 @@ test('the break-even cost is where the item stops lowering TI per credit', () =>
   const r = rate(CHAMPION);
   const g = r.gear.find(x => x.id === 'heavyCarapace');
   near(g.breakEven, 140 / (g.ratio - 1));
-  const tp = (base, wargear) => T.rate({ profile: CHAMPION, wargear, cost: { base } }).tp100;
+  const tp = (base, wargear) => T.rate({ profile: CHAMPION, wargear, cost: { base } }, { cover: 0 }).enemyCreditsPer100;
   const c = g.breakEven;
   assert.ok(tp(c + 1, ['heavyCarapace']) > tp(c + 1, []));
   assert.ok(tp(c - 1, ['heavyCarapace']) < tp(c - 1, []));
   // Reduced Bone Density pays off only on fighters cheaper than its break-even.
-  const b = T.rate({ profile: { T: 4, W: 1, sv: 6 }, cost: { base: 70 } }, { gang: 'goliath' }).gear.find(x => x.id === 'reducedBoneDensity');
+  const b = T.rate({ profile: { T: 4, W: 1, sv: 6 }, cost: { base: 70 } }, { gang: 'goliath', cover: 0 }).gear.find(x => x.id === 'reducedBoneDensity');
   assert.equal(b.breakEvenDirection, 'below');
   assert.ok(b.breakEven > 0, `C* ${b.breakEven}`);
   assert.ok(b.dHits < 0 && b.dTi < 0);
   assert.equal(b.dHitsPer100, null);
   assert.equal(b.dTp100, null);
-  // Cheaper than C*, saving the 10 credits raises hits per credit; dearer, it lowers them.
-  const hp = (base, gene) => T.rate({ profile: { T: 4, W: 1, sv: 6 }, geneSmithing: gene, cost: { base } }, { gang: 'goliath' }).hitsPer100;
+  // Cheaper than C*, saving the 10 credits raises enemy credits per credit; dearer, it lowers them.
+  const hp = (base, gene) => T.rate({ profile: { T: 4, W: 1, sv: 6 }, geneSmithing: gene, cost: { base } }, { gang: 'goliath', cover: 0 }).enemyCreditsPer100;
   assert.ok(hp(b.breakEven - 5, ['reducedBoneDensity']) > hp(b.breakEven - 5, []));
   assert.ok(hp(b.breakEven + 5, ['reducedBoneDensity']) < hp(b.breakEven + 5, []));
 });
@@ -474,6 +486,38 @@ test('gang tables carry the transcribed profiles and costs', () => {
   near(rate({ T: tek.T, W: tek.W, sv: tek.sv }).ti, 100);
 });
 
+test('enemy credits to Down price each weapon by its attacker package, and the headline is the cheapest', () => {
+  // Ganger vs a lasgun ganger: (40 + 15) credits, 1.75 hits a battle, 3.6 hits to Down.
+  const r = rate(GANGER, { cost: { base: 30 } });
+  const las = r.perProfile.find(p => p.id === 'lasStub');
+  near(las.enemyCredits, 55 * 3.6 / 1.75);
+  near(las.attacker.hitsPerBattle, 1.75);
+  const melta = r.perProfile.find(p => p.id === 'meltagun');
+  near(melta.enemyCredits, 240 * (1 / ((5 / 6) * (26 / 27))) / (1.5 * (4 / 6) * 0.55));
+  // The enemy's cheapest tool is the headline; on chaff that is a cheap ganger gun, never the meltagun.
+  assert.equal(r.bestTool.id, 'boltgun');
+  assert.ok(las.enemyCredits < melta.enemyCredits / 3);
+  near(r.enemyCredits, Math.min(...r.perProfile.map(p => p.enemyCredits)));
+  near(r.enemyCreditsPer100, 100 * r.enemyCredits / 30);
+  assert.equal(r.perProfile.filter(p => p.cheapest).length, 1);
+  // A Brute in heavy carapace is cheapest to remove with plasma, not lasguns.
+  assert.equal(rate({ T: 4, W: 4, sv: 4 }, { wargear: ['heavyCarapace'] }).bestTool.id, 'plasma');
+  // Overflow: a meltagun hit is priced the same on a W1 and a W3 fighter, so the W3 fighter
+  // gains its value against the cheaper tools instead.
+  const w1 = rate(GANGER).perProfile.find(p => p.id === 'meltagun').enemyCredits;
+  const w3 = rate({ T: 3, W: 3, sv: 6 }).perProfile.find(p => p.id === 'meltagun').enemyCredits;
+  near(w1, w3);
+  assert.ok(rate({ T: 3, W: 3, sv: 6 }).enemyCredits > 2 * rate(GANGER).enemyCredits);
+  // No cost given: the per-100 figure is null; a pool without attacker packages rates hits only.
+  assert.equal(T.rate({ profile: GANGER }).enemyCreditsPer100, null);
+  const bare = { version: 'bare', meleeStrength: 3, roles: [{ id: 'x', name: 'x' }],
+    profiles: [Object.assign({}, prof('lasStub'), { role: 'x', attacker: undefined })], weights: { default: { x: 1 } } };
+  const b = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { pool: bare, cover: 0 });
+  assert.equal(b.enemyCredits, null);
+  assert.equal(b.bestTool, null);
+  near(b.hitsToDown, hits(CHAMPION, 'lasStub'));
+});
+
 test('the headline figures land where the rules say they should', () => {
   const h = (p, wargear = [], gene = [], gang = 'vanSaar') => rate(p, { wargear, geneSmithing: gene }, { gang }).hitsToDown;
   const ganger = h(GANGER);
@@ -497,21 +541,24 @@ test('the headline figures land where the rules say they should', () => {
 test('rate is pure: same input, same output, and unknown ids are reported not thrown', () => {
   const a = T.rate({ profile: CHAMPION, wargear: ['refractor', 'bogus'], cost: { base: 95 } });
   const b = T.rate({ profile: CHAMPION, wargear: ['refractor', 'bogus'], cost: { base: 95 } });
+  assert.equal(a.options.cover, 1);   // the default is short-range cover
   assert.deepEqual(a, b);
   assert.ok(a.problems.some(p => /bogus/.test(p)));
   assert.equal(a.poolVersion, 'v1');
-  assert.deepEqual(a.options, { endState: 'down', opponent: 'default', mode: 'creation', cover: 0, gang: 'vanSaar', equipmentList: 'vanSaar' });
+  assert.deepEqual(a.options, { endState: 'down', opponent: 'default', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar' });
+  assert.equal(T.rate({ profile: CHAMPION }, { cover: 0 }).options.cover, 0);
+  assert.equal(T.rate({ profile: CHAMPION }, { cover: '2' }).options.cover, 2);
 });
 
 test('a custom pool can be rated, and carries its own version tag', () => {
   const custom = { version: 'test', meleeStrength: 3, roles: [{ id: 'x', name: 'x' }],
     profiles: [Object.assign({}, prof('lasStub'), { role: 'x' })], weights: { default: { x: 1 } } };
-  const r = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { pool: custom });
+  const r = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { pool: custom, cover: 0 });
   assert.equal(r.poolVersion, 'test');
   assert.equal(r.perProfile.length, 1);
   near(r.hitsToDown, hits(CHAMPION, 'lasStub'));
   near(r.ti, 100 * hits(CHAMPION, 'lasStub') / 3.6);
-  assert.equal(r.perProfile[0].cost, '5');   // Trading Post price rides along for display
+  assert.equal(r.perProfile[0].cost, '15 / 5');   // Trading Post prices ride along for display
 });
 
 test('opponent profiles change the answer', () => {
