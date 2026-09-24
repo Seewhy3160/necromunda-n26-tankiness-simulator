@@ -431,6 +431,35 @@ test('gang tables carry the transcribed profiles and costs', () => {
     { gang: 'vanSaar', equipmentList: 'none', mode: 'campaign' });
   assert.ok(pet.gear.filter(g => g.kind === 'wargear' && !g.weapon).every(g => !g.available));
   assert.ok(pet.notes.some(n => /cannot buy or be given wargear/.test(n)));
+  // House Delaque, pp24-30.
+  assert.deepEqual(line(f('delaque', 'Master of Shadow')), [140, 3, 3, 3, 4, 5]);
+  assert.deepEqual(line(f('delaque', 'Phantom')), [100, 3, 3, 2, 4, 5]);
+  assert.deepEqual(line(f('delaque', 'Nacht-Ghul')), [120, 4, 3, 2, 5, 5]);
+  assert.deepEqual(line(f('delaque', 'Ghost')), [45, 3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('delaque', 'Psy-Gheist')), [30, 3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('delaque', 'Shadow')), [25, 3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('delaque', 'Piscean Spektor')), [250, 4, 4, 4, 4, 5]);
+  assert.deepEqual(line(f('delaque', 'Cephalopod Spektor')), [75, 2, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('delaque', 'Psychoteric Wyrm')), [50, 2, 3, 1, 3, 6]);
+  // House Escher, pp36-42. The Gang Sister matches the core rules' one printed profile (p50).
+  assert.deepEqual(line(f('escher', 'Gang Queen')), [135, 3, 3, 3, 5, 5]);
+  assert.deepEqual(line(f('escher', 'Gang Matriarch')), [100, 3, 3, 2, 5, 5]);
+  assert.deepEqual(line(f('escher', 'Death-Maiden')), [130, 3, 4, 2, 5, 5]);
+  assert.deepEqual(line(f('escher', 'Gang Sister')), [40, 3, 3, 1, 4, 6]);
+  const book = Data.fighters.find(x => x.book);
+  assert.deepEqual([book.S, book.T, book.W, book.I, book.sv], [3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('escher', 'Wyld Runner')), [30, 3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('escher', 'Little Sister')), [25, 3, 3, 1, 4, 6]);
+  assert.deepEqual(line(f('escher', 'Khimerix')), [220, 4, 5, 4, 4, 6]);
+  assert.deepEqual(line(f('escher', 'Phyrr Cat')), [80, 3, 3, 1, 5, 6]);
+  assert.deepEqual(line(f('escher', 'Phelynx')), [60, 2, 3, 1, 4, 6]);
+  // Both lists carry mesh, refractor and respirator and nothing else defensive.
+  for (const gang of ['delaque', 'escher']) {
+    const r = rate(CHAMPION, {}, { gang });
+    const onList = r.gear.filter(g => g.availability === 'list').map(g => g.id).sort();
+    assert.deepEqual(onList, ['meshArmour', 'refractor', 'respirator']);
+    for (const p of T.GANGS[gang].fighters) assert.ok(p.equipmentList === gang || p.equipmentList === 'none', p.name);
+  }
   // House of Chains: cost, S, T, W, I, Sv.
   assert.deepEqual(line(f('goliath', 'Forge Breaker')), [70, 3, 4, 1, 3, 6]);
   assert.deepEqual(line(f('furnaceBrutes', 'Forge Master')), [105, 3, 4, 2, 3, 5]);

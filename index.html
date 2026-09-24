@@ -857,6 +857,8 @@ const Tankiness = (function (Engine, Data) {
     goliath: { name: 'House Goliath', items: { meshArmour: {}, refractor: {}, respirator: {} } },
     furnaceBrutes: { name: 'Furnace Brutes', items: { meshArmour: {}, refractor: {}, respirator: {} } },
     unborn: { name: 'Unborn', items: { meshArmour: {}, refractor: {}, respirator: {} } },
+    delaque: { name: 'House Delaque', items: { meshArmour: {}, refractor: {}, respirator: {} } },
+    escher: { name: 'House Escher', items: { meshArmour: {}, refractor: {}, respirator: {} } },
     /* Pets and other fighters that cannot buy or be given any wargear. */
     none: { name: 'no wargear', items: {}, locked: true }
   };
@@ -901,6 +903,33 @@ const Tankiness = (function (Engine, Data) {
         GO('ubMalformed', 'Malformed', 'Brute, Loner', 80, 4, 2, 6, 4, 2, 'unborn'),
         GO('ubGunner', 'Forge Gunner', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn'),
         GO('ubPatcher', 'Forge Patcher', 'Ganger', 60, 4, 1, 6, 3, 3, 'unborn')
+      ] },
+    /* House Delaque gang list, pp24-30. */
+    delaque: { id: 'delaque', name: 'House Delaque', equipmentList: 'delaque', tradingPostAtCreation: false, geneSmithing: false,
+      fighters: [
+        GO('dqMaster', 'Master of Shadow', 'Leader', 140, 3, 3, 5, 3, 4, 'delaque'),
+        GO('dqPhantom', 'Phantom', 'Champion', 100, 3, 2, 5, 3, 4, 'delaque'),
+        GO('dqNachtGhul', 'Nacht-Ghul', 'Champion, Loner', 120, 3, 2, 5, 4, 5, 'delaque'),
+        GO('dqGhost', 'Ghost', 'Ganger, Specialist', 45, 3, 1, 6, 3, 4, 'delaque'),
+        GO('dqPsyGheist', 'Psy-Gheist', 'Prospect, Wyrd', 30, 3, 1, 6, 3, 4, 'delaque'),
+        GO('dqShadow', 'Shadow', 'Prospect', 25, 3, 1, 6, 3, 4, 'delaque'),
+        GO('dqPiscean', 'Piscean Spektor', 'Beast, Brute, Flying, Wyrd', 250, 4, 4, 5, 4, 4, 'none', { note: 'cannot buy or be given any wargear' }),
+        GO('dqCephalopod', 'Cephalopod Spektor', 'Beast, Flying, Pet', 75, 3, 1, 6, 2, 4, 'none', { note: 'cannot buy or be given any wargear' }),
+        GO('dqWyrm', 'Psychoteric Wyrm', 'Beast, Pet', 50, 3, 1, 6, 2, 3, 'none', { note: 'cannot buy or be given any wargear' })
+      ] },
+    /* House Escher gang list, pp36-42. */
+    escher: { id: 'escher', name: 'House Escher', equipmentList: 'escher', tradingPostAtCreation: false, geneSmithing: false,
+      fighters: [
+        GO('esQueen', 'Gang Queen', 'Leader', 135, 3, 3, 5, 3, 5, 'escher'),
+        GO('esMatriarch', 'Gang Matriarch', 'Champion', 100, 3, 2, 5, 3, 5, 'escher'),
+        GO('esDeathMaiden', 'Death-Maiden', 'Champion, Loner', 130, 4, 2, 5, 3, 5, 'escher'),
+        GO('esSister', 'Gang Sister', 'Ganger, Specialist', 40, 3, 1, 6, 3, 4, 'escher'),
+        GO('esWyldRunner', 'Wyld Runner', 'Prospect', 30, 3, 1, 6, 3, 4, 'escher'),
+        GO('esLittleSister', 'Little Sister', 'Prospect', 25, 3, 1, 6, 3, 4, 'escher'),
+        GO('esKhimerix', 'Khimerix', 'Beast, Brute', 220, 5, 4, 6, 4, 4, 'none',
+          { note: 'cannot buy or be given any wargear; Regeneration acts between hits and is not rated' }),
+        GO('esPhyrrCat', 'Phyrr Cat', 'Beast, Pet', 80, 3, 1, 6, 3, 5, 'none', { note: 'cannot buy or be given any wargear' }),
+        GO('esPhelynx', 'Phelynx', 'Beast, Pet', 60, 3, 1, 6, 2, 4, 'none', { note: 'cannot buy or be given any wargear' })
       ] },
     generic: { id: 'generic', name: 'Core rules fighter types', equipmentList: null, tradingPostAtCreation: false, geneSmithing: false,
       fighters: Data.fighters.filter(f => !f.book).map(f => ({

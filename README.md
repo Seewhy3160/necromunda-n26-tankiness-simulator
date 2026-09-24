@@ -94,8 +94,10 @@ recruitment only.
 
 Gangs transcribed so far: House Van Saar (default, Gang List pp72–78,
 including the Cyberachnid pet, which can take no wargear; the Arachni-Rig is a
-vehicle and out of scope) and House Goliath with its Furnace Brutes and Unborn
-variants (*The House of Chains*). The core rules fighter types (Ganger,
+vehicle and out of scope), House Goliath with its Furnace Brutes and Unborn
+variants (*The House of Chains*), House Delaque (pp24–30) and House Escher
+(pp36–42), each with their Beasts and Pets, which can take no wargear. The
+Khimerix's Regeneration acts between hits and is not rated. The core rules fighter types (Ganger,
 Champion, Leader, Brute, Juve) are there too, with no list, so everything
 counts as available for them; their Strength and Initiative are the attack
 simulator's rounded values, since the core rules print only one full profile.
