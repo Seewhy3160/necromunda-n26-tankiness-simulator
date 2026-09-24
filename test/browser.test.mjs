@@ -69,16 +69,22 @@ t('the default is a Van Saar Augmek: T3 W2 Sv5+, 95 credits, cheapest to remove 
   const ecd = parseInt(await out('ecd'), 10);
   assert.ok(ecd > 100 && ecd < 300, `enemy credits ${ecd}`);
   assert.match(await page.textContent('[data-profile]'), /Augmek.*Champion.*95 credits/);
+  // The plan is spelt out: who fires, what it costs, and how far it gets.
+  const plan = await page.textContent('[data-plan]');
+  assert.match(plan, /cheapest plan, \d+c of enemy gang spending one battle on this fighter/);
+  assert.match(plan, /Plasma gun on a Champion \(BS 3\+\), 185c: lands 1\.8 of the \d\.\d hits it would need alone, \d+% of the way to Down/);
   const minor = await page.textContent('[data-minor]');
-  assert.match(minor, /cheapest plan\s*Plasma gun/);
-  assert.match(minor, /Hits to Down from the mix\s*\d\.\d\d/);
+  assert.match(minor, /Hits to Down when each hit comes from the enemy mix\s*\d\.\d\d/);
   assert.match(minor, /Down on the first hit\s*\d+\.\d%/);
 });
 
 t('picking the Tek gives the plain-Ganger reference, and lasguns are the cheap answer to it', async () => {
   await setSel('pick.fighter', 'vsTek');
   assert.match(await page.textContent('[data-minor]'), /vs a plain Ganger\s*×1\.00/);
-  assert.match(await page.textContent('[data-minor]'), /cheapest plan\s*Boltgun/);
+  // One bolter ganger lands 1.9 hits a battle and the Tek needs 2.0, so the plan spills into a sliver of lasguns.
+  const plan = await page.textContent('[data-plan]');
+  assert.match(plan, /cheapest plan.*Boltgun on a Ganger \(BS 4\+\), 95c: lands 1\.9 of the 2\.0 hits it would need alone, 93% of the way/);
+  assert.match(plan, /Lasgun on 0\.2 of the 4 Gangers \(BS 4\+\)/);
   assert.equal(await page.inputValue('[data-bind="c.base"]'), '30');
   const ecd = parseInt(await out('ecd'), 10);
   assert.ok(Math.abs(parseInt(await out('ecdPer100'), 10) - 100 * ecd / 30) <= 2);
@@ -213,9 +219,9 @@ t('cover and the opponent profile change the answer without breaking the Ganger 
   // 5+ save the equal mix reproduces short-range cover exactly: the +1 row is the headline.
   assert.equal((await coverRows())[1].cells[2], await out('ecd'));
   const minor = () => page.textContent('[data-minor]');
-  const dflt = (await minor()).match(/from the mix\s*(\d\.\d\d)/)[1];
+  const dflt = (await minor()).match(/enemy mix\s*(\d\.\d\d)/)[1];
   await setSel('o.opponent', 'meleeRush');
-  assert.notEqual((await minor()).match(/from the mix\s*(\d\.\d\d)/)[1], dflt);
+  assert.notEqual((await minor()).match(/enemy mix\s*(\d\.\d\d)/)[1], dflt);
   await setSel('o.opponent', 'default');
   assert.match(await page.textContent('[data-pool]'), /Enemy weapon mix, pool v1/);
 });

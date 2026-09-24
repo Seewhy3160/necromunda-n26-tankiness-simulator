@@ -38,7 +38,10 @@ h1{font-size:19px;margin:0 0 3px;letter-spacing:.2px}
 .odd .v{font:700 25px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.5px}
 .odd .k{font-size:11px;color:var(--ink-dim);margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
 .odd.ti .v{color:var(--accent)} .odd.tp .v{color:var(--flesh)} .odd.cr .v{color:var(--ink)}
-.minor{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:9px;font-size:12.5px;color:var(--ink-dim)}
+.plan{margin-top:9px;font-size:12.5px;color:var(--ink-dim);line-height:1.45}
+.plan p{margin:0 0 2px} .plan ol{margin:0;padding-left:22px} .plan li{margin:1px 0}
+.plan b{color:var(--ink);font-weight:600} .plan .n{font-family:ui-monospace,Menlo,monospace;color:var(--ink)}
+.minor{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:7px;font-size:12.5px;color:var(--ink-dim)}
 .minor b{color:var(--ink);font-weight:600;font-family:ui-monospace,Menlo,monospace}
 .warn,.info{margin-top:9px;font-size:12.5px;border-radius:8px;padding:8px 10px}
 .warn{color:var(--accent);background:rgba(224,164,88,.09);border:1px solid rgba(224,164,88,.32)}
@@ -1682,6 +1685,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
         mk('ti', 'ecd', 'Enemy credits to Down'),
         mk('tp', 'ecdPer100', 'Enemy credits per 100c'),
         mk('cr', 'total', 'Total credits')),
+      el('div', { class: 'plan', 'data-plan': '1' }),
       el('div', { class: 'minor', 'data-minor': '1' }),
       el('div', { class: 'warn hidden', 'data-warn': '1' }),
       el('div', { class: 'info hidden', 'data-notes': '1' }));
@@ -1830,6 +1834,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
 
   function td(text, extra) { return el('td', { class: 'num ' + (extra || ''), text: text }); }
   const shortName = (name) => name.split(' (')[0].split(' / ')[0];
+  const pct0 = (x) => Math.round(x * 100) + '%';
+  const plural = (carrier) => carrier.replace(/^(\w+)/, '$1s');   // 'Ganger (BS 4+)' -> 'Gangers (BS 4+)'
   const planText = (plan) => plan.steps.map(s => shortName(s.name) + ' ' + pct(s.share)).join(', ') +
     (plan.battles > 1.0001 ? ' (over ' + plan.battles.toFixed(1) + ' battles)' : '');
 
@@ -1838,11 +1844,30 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.querySelector('[data-out="ecdPer100"]').textContent = res.enemyCreditsPer100 == null ? '–' : Math.round(res.enemyCreditsPer100);
     root.querySelector('[data-out="total"]').textContent = res.cost.total;
 
+    // The plan in words: who fires, what it costs, and how far it gets.
+    const planBox = root.querySelector('[data-plan]');
+    if (res.plan) {
+      const battles = res.plan.battles;
+      const steps = res.plan.steps.map(s => {
+        const p = res.perProfile.find(x => x.id === s.id);
+        const a = p.attacker;
+        const n = s.share * p.hits / (a.hitsPerBattle * battles);   // packages of this tool firing, per battle
+        const who = a.count > 1
+          ? (n >= a.count - 0.005 ? 'all ' + a.count + ' ' : n.toFixed(1) + ' of the ' + a.count + ' ') + plural(a.carrier)
+          : 'a ' + a.carrier + (n < 0.995 ? ' for ' + pct0(n) + ' of its battle' : '');
+        return '<li><b>' + esc(shortName(s.name)) + '</b> on ' + esc(who) + ', <span class="n">' + Math.round(s.credits) + 'c</span>: lands ' +
+          '<span class="n">' + (s.share * p.hits).toFixed(1) + '</span> of the <span class="n">' + p.hits.toFixed(1) + '</span> hits it would need alone, ' +
+          '<span class="n">' + pct0(s.share) + '</span> of the way to Down</li>';
+      });
+      planBox.innerHTML = '<p>Enemy’s cheapest plan, <span class="n">' + Math.round(res.enemyCredits) + 'c</span> of enemy gang spending ' +
+        (battles > 1.0001 ? '<span class="n">' + battles.toFixed(1) + '</span> battles' : 'one battle') + ' on this fighter:</p><ol>' + steps.join('') + '</ol>';
+    } else {
+      planBox.innerHTML = '';
+    }
+
     const bits = [];
-    if (res.plan) bits.push('Enemy’s cheapest plan ' + res.plan.steps.map(s => '<b>' + esc(shortName(s.name)) + '</b> ' + pct(s.share)).join(', ') +
-      (res.plan.battles > 1.0001 ? ' (over ' + res.plan.battles.toFixed(1) + ' battles)' : ''));
     bits.push(
-      'Hits to Down from the mix <b>' + res.hitsToDown.toFixed(2) + '</b>',
+      'Hits to Down when each hit comes from the enemy mix <b>' + res.hitsToDown.toFixed(2) + '</b>',
       'Down on the first hit <b>' + pct(res.pDownFirst) + '</b>',
       'vs a plain Ganger <b>×' + (res.ti / 100).toFixed(2) + '</b>',
       'Defensive gear <b>' + res.cost.defensive + 'c</b>');
