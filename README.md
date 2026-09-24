@@ -68,6 +68,7 @@ takes the fighter out of the fight. *Out of Action only* is an option.
 | Scar Tissue (+15, Goliath) | Lethality of every hit −1, minimum 1 |
 | Adaptive Biology (+15, Goliath) | Toxin wounds must re-roll the wound dice |
 | Reduced Bone Density (−10, Goliath) | −1 T, and 10 credits back |
+| Vehicle (flag) | Hits resolve as for a fighter (Wounds, Injury dice, p77); Toxin wounds it only on a natural 6 (p165). Lasting Damage and vehicle-only rules are not rated |
 
 **Scenario options:** cover (p76: +1 to armour saves against shooting within
 the weapon's short range, which is the **default**, +2 within long range, or
@@ -99,8 +100,8 @@ their creation stage includes it. Gene-smithing is a Goliath option at
 recruitment only.
 
 Gangs transcribed so far: House Van Saar (default, Gang List pp72–78,
-including the Cyberachnid pet, which can take no wargear; the Arachni-Rig is a
-vehicle and out of scope), House Goliath with its Furnace Brutes and Unborn
+including the Cyberachnid pet and the Ash Wastes 'Arachni-Rig', neither of
+which can take wargear), House Goliath with its Furnace Brutes and Unborn
 variants (*The House of Chains*), House Delaque (pp24–30) and House Escher
 (pp36–42), each with their Beasts and Pets, which can take no wargear. The
 Khimerix's Regeneration acts between hits and is not rated. The core rules fighter types (Ganger,

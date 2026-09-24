@@ -902,7 +902,13 @@ const Tankiness = (function (Engine, Data) {
         VS('vsNeotek', 'Neotek', 'Prospect (Grav Cutter included)', 65, 3, 1, 6, 3, 3),
         VS('vsSubtek', 'Subtek', 'Prospect', 20, 3, 1, 6, 3, 3),
         VS('vsCyberachnid', 'Cyberachnid', 'Beast, Pet', 90, 2, 1, 6, 2, 5,
-          { equipmentList: 'none', note: 'cannot buy or be given any wargear' })
+          { equipmentList: 'none', note: 'cannot buy or be given any wargear' }),
+        /* Vehicle (Skimmer, Walker, Hybrid, Loner) after the September 2026 errata.
+           Vehicles take Wounds and Injury dice like fighters (p77); Toxin wounds
+           them only on a natural 6 (p165). Its weapon options (rad gun +35,
+           plasma gun +75, flamer +70, harpoon launcher +80) go under weapons. */
+        VS('vsArachniRig', "Ash Wastes 'Arachni-Rig'", 'Vehicle (Skimmer, Walker, Hybrid, Loner)', 275, 4, 4, 4, 5, 3,
+          { equipmentList: 'none', vehicle: true, note: 'vehicle: Toxin wounds it only on a 6; cannot buy or be given wargear; weapon options go under weapons' })
       ] },
     goliath: { id: 'goliath', name: 'House Goliath', equipmentList: 'goliath', tradingPostAtCreation: false, geneSmithing: true,
       fighters: [
@@ -966,7 +972,7 @@ const Tankiness = (function (Engine, Data) {
   function effectiveTarget(profile, items) {
     const t = {
       T: profile.T, W: profile.W, sv: profile.sv || 0, inv: profile.inv || 0,
-      S: profile.S || 3, I: profile.I || 4,
+      S: profile.S || 3, I: profile.I || 4, vehicle: !!profile.vehicle,
       meleeSave: 0, rangedSave: 0, parry: false, shield: false, evasionRanged: 1,
       refractor: false, reflec: false, hazardSuit: false, respirator: false, bioBooster: false,
       dodge: false, ironJaw: false, scarTissue: false, adaptiveBiology: false
@@ -1065,7 +1071,7 @@ const Tankiness = (function (Engine, Data) {
   }
 
   function woundTargetFor(prof, t, s) {
-    if (prof.toxin > 0) return prof.toxin;                       // Toxin ignores Toughness (p165)
+    if (prof.toxin > 0) return t.vehicle ? 6 : prof.toxin;       // Toxin ignores Toughness; a Vehicle only on a 6 (p165)
     if (prof.str === null || prof.str === undefined) return 7;   // nothing to wound with
     let T = t.T;
     if (t.ironJaw && skillsWork(s) && prof.melee && prof.ap === 0) T += 2;   // p151
@@ -1370,6 +1376,7 @@ const Tankiness = (function (Engine, Data) {
         main.target.evasionRanged.toFixed(2) + ' of ranged, non-Template hits kept at a reference BS 3+) rather than in TI.');
     }
     if (main.target.respirator) notes.push('Respirator: no weapon in the pool has Gas, so it adds nothing to TI here.');
+    if (main.target.vehicle) notes.push('Vehicle: hits are resolved as for a fighter (Wounds, then Injury dice, p77), and Toxin wounds it only on a natural 6 (p165). Lasting Damage and vehicle-only rules are not rated.');
     if (main.target.dodge || main.target.ironJaw) notes.push('Skills stop working once the fighter is Injured (p48), so Dodge and Iron Jaw only count while Wounds remain.' +
       (main.target.dodge ? ' Dodge never cancels a Template or Blast hit (p151), so the hand flamer ignores it.' : ''));
     if (selected.some(x => x.id === 'hystrarShield')) notes.push('‘Hystrar’ shield: takes a weapon slot, and the fighter is assumed to use it in combat for the Parry bonus.');
@@ -1548,7 +1555,13 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       field('Save', 't.sv', SAVE, 5),
       field('Invulnerable save', 't.inv', SAVE, 0),
       field('Strength', 't.S', NUM, 3),
-      field('Initiative', 't.I', NUM, 4)));
+      field('Initiative', 't.I', NUM, 4),
+      (function () {
+        const box = el('input', { type: 'checkbox', 'data-bind': 't.vehicle' });
+        return el('div', { class: 'f wide' }, el('div', { class: 'chks' },
+          el('label', { class: 'chk', title: 'Vehicles take Wounds and Injury dice like fighters (p77); Toxin wounds them only on a natural 6 (p165).' },
+            box, el('span', { text: 'Vehicle' }), el('span', { class: 'avail', text: 'Toxin wounds it only on a 6' }))));
+      })()));
     root.appendChild(group('Credits',
       numberField('Base cost', 'c.base', 95, 'The fighter card, without gear.'),
       numberField('Weapons', 'c.weapons', 0, 'Everything the fighter shoots or swings with.'),
@@ -1638,6 +1651,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     setControl(root, 't.inv', 0);
     setControl(root, 't.S', f.S);
     setControl(root, 't.I', f.I);
+    setControl(root, 't.vehicle', !!f.vehicle);
     if (f.cost != null) setControl(root, 'c.base', f.cost);
   }
 
@@ -1783,7 +1797,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
 
       const ids = (list) => list.filter(it => st.g && st.g[it.id]).map(it => it.id);
       const res = Tankiness.rate({
-        profile: { T: st.t.T, W: st.t.W, sv: st.t.sv, inv: st.t.inv, S: st.t.S, I: st.t.I },
+        profile: { T: st.t.T, W: st.t.W, sv: st.t.sv, inv: st.t.inv, S: st.t.S, I: st.t.I, vehicle: !!st.t.vehicle },
         wargear: ids(Tankiness.WARGEAR),
         skills: ids(Tankiness.SKILLS),
         geneSmithing: ids(Tankiness.GENE_SMITHING),

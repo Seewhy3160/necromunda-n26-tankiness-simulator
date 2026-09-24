@@ -438,6 +438,16 @@ test('gang tables carry the transcribed profiles and costs', () => {
   assert.deepEqual(line(f('vanSaar', 'Neotek')), [65, 3, 3, 1, 3, 6]);
   assert.deepEqual(line(f('vanSaar', 'Subtek')), [20, 3, 3, 1, 3, 6]);
   assert.deepEqual(line(f('vanSaar', 'Cyberachnid')), [90, 2, 2, 1, 5, 6]);
+  const rig = f('vanSaar', "Ash Wastes 'Arachni-Rig'");
+  assert.deepEqual(line(rig), [275, 5, 4, 4, 3, 4]);
+  assert.equal(rig.vehicle, true);
+  assert.equal(rig.equipmentList, 'none');
+  // A Vehicle is wounded by Toxin only on a natural 6 (p165); everything else is as a fighter.
+  const asFighter = { T: 4, W: 1, sv: 4, S: 5, I: 3 }, asVehicle = Object.assign({ vehicle: true }, asFighter);
+  near(T.hitsToDown(prof('stiletto'), tgt(asVehicle), opts()).pDownFirst / T.hitsToDown(prof('stiletto'), tgt(asFighter), opts()).pDownFirst, (1 / 6) / (4 / 6));
+  near(T.hitsToDown(prof('chainsword'), tgt(asVehicle), opts()).hits, T.hitsToDown(prof('chainsword'), tgt(asFighter), opts()).hits);
+  near(T.hitsToDown(prof('plasma'), tgt(asVehicle), opts()).hits, T.hitsToDown(prof('plasma'), tgt(asFighter), opts()).hits);
+  assert.ok(rate(rig).notes.some(n => /Vehicle/.test(n)));
   // The Cyberachnid cannot take wargear: everything is rated but unavailable.
   const pet = T.rate({ profile: f('vanSaar', 'Cyberachnid'), wargear: ['refractor'], cost: { base: 90 } },
     { gang: 'vanSaar', equipmentList: 'none', mode: 'campaign' });

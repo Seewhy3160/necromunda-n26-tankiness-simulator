@@ -40,7 +40,7 @@ function simulate(pick, t, opts, trials, seed) {
     const skills = cond === 0;   // an Injured fighter gains no benefit from skills (p48)
     let Tn = t.T;
     if (t.ironJaw && skills && prof.melee && prof.ap === 0) Tn += 2;
-    const need = prof.toxin ? prof.toxin : woundTarget(prof.str, Tn);
+    const need = prof.toxin ? (t.vehicle ? 6 : prof.toxin) : woundTarget(prof.str, Tn);   // Toxin vs a Vehicle: natural 6 only
     let face = d6();
     let wounds = face >= need;
     if (wounds && prof.toxin && t.adaptiveBiology) { face = d6(); wounds = face >= need; }
@@ -121,6 +121,7 @@ const CASES = [
   ['Champion with a bio-booster vs laspistol (bearer picks)', 'lasStub', tgt({ T: 3, W: 2, sv: 5 }, ['bioBooster']), {}],
   ['Forge Despot with Scar Tissue vs cleaver', 'cleaver', tgt({ T: 4, W: 3, sv: 5 }, ['scarTissue']), {}],
   ['Forge Master with Adaptive Biology vs stiletto', 'stiletto', tgt({ T: 4, W: 2, sv: 5 }, ['adaptiveBiology']), {}],
+  ['Arachni-Rig (vehicle) vs stiletto: Toxin on a 6 only', 'stiletto', tgt({ T: 4, W: 4, sv: 4, S: 5, I: 3, vehicle: true }), {}],
   ['Dodge and Iron Jaw vs chainsword (Shred)', 'chainsword', tgt({ T: 3, W: 2, sv: 5 }, ['dodge', 'ironJaw']), {}],
   ['Dodge vs a hand flamer (Template: no dodge)', 'handFlamer', tgt({ T: 3, W: 2, sv: 5 }, ['dodge']), {}],
   ['Hystrar shield plus a parry weapon vs chainsword (no stacking)', 'chainsword', tgt({ T: 3, W: 2, sv: 5 }, ['hystrarShield', 'parryWeapon']), {}],
