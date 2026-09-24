@@ -92,10 +92,13 @@ Furnace Brutes can always buy from the Trading Post (*Fires of the Forge*), so
 their creation stage includes it. Gene-smithing is a Goliath option at
 recruitment only.
 
-Gangs transcribed so far: House Van Saar (default, Gang List pp72–78) and
-House Goliath with its Furnace Brutes and Unborn variants (*The House of
-Chains*). The core rules fighter types (Ganger, Champion, Leader, Brute, Juve)
-are there too, with no list, so everything counts as available for them.
+Gangs transcribed so far: House Van Saar (default, Gang List pp72–78,
+including the Cyberachnid pet, which can take no wargear; the Arachni-Rig is a
+vehicle and out of scope) and House Goliath with its Furnace Brutes and Unborn
+variants (*The House of Chains*). The core rules fighter types (Ganger,
+Champion, Leader, Brute, Juve) are there too, with no list, so everything
+counts as available for them; their Strength and Initiative are the attack
+simulator's rounded values, since the core rules print only one full profile.
 
 ## Reference attack pool
 

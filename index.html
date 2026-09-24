@@ -846,31 +846,36 @@ const Tankiness = (function (Engine, Data) {
      Trading Post opens in the campaign's Post-cycle Sequence. Van Saar is the
      default reference gang (Gang List pp72-78) and Goliath (House of Chains)
      the tough one. Strength and Initiative feed only Graviton Pulse and Flash,
-     neither of which is in the v1 pool; where a list did not print them they
-     are the common values and every field stays editable. */
+     neither of which is in the v1 pool. The core rules fighter types carry
+     the attack simulator's rounded S and I; every field stays editable. */
   const EQUIPMENT_LISTS = {
     vanSaar: { name: 'House Van Saar', items: {
       refractor: {}, meshArmour: {}, hystrarShield: {}, bioBooster: {}, respirator: {},
-      lightCarapace: { only: 'Gunner' }, refractionCloak: { only: 'Sniper' } } },
+      lightCarapace: { only: 'Gunner specialist' }, refractionCloak: { only: 'Sniper specialist' } } },
     goliath: { name: 'House Goliath', items: { meshArmour: {}, refractor: {}, respirator: {} } },
     furnaceBrutes: { name: 'Furnace Brutes', items: { meshArmour: {}, refractor: {}, respirator: {} } },
-    unborn: { name: 'Unborn', items: { meshArmour: {}, refractor: {}, respirator: {} } }
+    unborn: { name: 'Unborn', items: { meshArmour: {}, refractor: {}, respirator: {} } },
+    /* Pets and other fighters that cannot buy or be given any wargear. */
+    none: { name: 'no wargear', items: {}, locked: true }
   };
 
-  const VS = (id, name, type, cost, T, W, sv, extra) => Object.assign(
-    { id: id, name: name, type: type, cost: cost, T: T, W: W, sv: sv, S: 3, I: 4, equipmentList: 'vanSaar' }, extra || {});
+  const VS = (id, name, type, cost, T, W, sv, S, I, extra) => Object.assign(
+    { id: id, name: name, type: type, cost: cost, T: T, W: W, sv: sv, S: S, I: I, equipmentList: 'vanSaar' }, extra || {});
   const GO = (id, name, type, cost, T, W, sv, S, I, list, extra) => Object.assign(
     { id: id, name: name, type: type, cost: cost, T: T, W: W, sv: sv, S: S, I: I, equipmentList: list }, extra || {});
 
   const GANGS = {
+    /* House Van Saar gang list, pp72-78. */
     vanSaar: { id: 'vanSaar', name: 'House Van Saar', equipmentList: 'vanSaar', tradingPostAtCreation: false, geneSmithing: false,
       fighters: [
-        VS('vsPrime', 'Prime', 'Leader', 115, 3, 3, 5),
-        VS('vsAugmek', 'Augmek', 'Champion', 95, 3, 2, 5),
-        VS('vsArcheotek', 'Archeotek', 'Champion, Loner', 85, 3, 2, 4, { I: 2 }),
-        VS('vsNeotek', 'Neotek', 'Prospect (with Grav Cutter)', 65, 3, 1, 6),
-        VS('vsTek', 'Tek', 'Ganger, Specialist', 30, 3, 1, 6),
-        VS('vsSubtek', 'Subtek', 'Prospect', 20, 3, 1, 6)
+        VS('vsPrime', 'Prime', 'Leader', 115, 3, 3, 5, 3, 3),
+        VS('vsAugmek', 'Augmek', 'Champion', 95, 3, 2, 5, 3, 3),
+        VS('vsArcheotek', 'Archeotek', 'Champion, Loner', 85, 3, 2, 4, 3, 2),
+        VS('vsTek', 'Tek', 'Ganger, Specialist', 30, 3, 1, 6, 3, 2),
+        VS('vsNeotek', 'Neotek', 'Prospect (Grav Cutter included)', 65, 3, 1, 6, 3, 3),
+        VS('vsSubtek', 'Subtek', 'Prospect', 20, 3, 1, 6, 3, 3),
+        VS('vsCyberachnid', 'Cyberachnid', 'Beast, Pet', 90, 2, 1, 6, 2, 5,
+          { equipmentList: 'none', note: 'cannot buy or be given any wargear' })
       ] },
     goliath: { id: 'goliath', name: 'House Goliath', equipmentList: 'goliath', tradingPostAtCreation: false, geneSmithing: true,
       fighters: [
@@ -1172,6 +1177,8 @@ const Tankiness = (function (Engine, Data) {
   function availability(item, opts) {
     const gang = opts.gangDef;
     if (item.kind === 'skill') return { status: 'skill', available: true, note: item.set + ' skill' };
+    const locked = opts.equipmentList && EQUIPMENT_LISTS[opts.equipmentList] && EQUIPMENT_LISTS[opts.equipmentList].locked;
+    if (locked) return { status: 'unavailable', available: false, note: 'this fighter cannot buy or be given wargear' };
     if (item.weapon) return { status: 'weapon', available: true, note: 'depends on the weapon carried' };
     if (item.kind === 'gene') {
       return gang && gang.geneSmithing
@@ -1293,6 +1300,9 @@ const Tankiness = (function (Engine, Data) {
     if (selected.filter(x => x.kind === 'gene').length > 1) notes.push('Only one gene-smithing option is normally allowed (the Forge Master may take two).');
     if (opts.equipmentList && !EQUIPMENT_LISTS[opts.equipmentList]) problems.push('Unknown Equipment List "' + opts.equipmentList + '"; availability is unknown.');
     if (!opts.equipmentList) notes.push('No Equipment List for this fighter, so every item is rated as available.');
+    if (opts.equipmentList && EQUIPMENT_LISTS[opts.equipmentList] && EQUIPMENT_LISTS[opts.equipmentList].locked) {
+      notes.push('This fighter cannot buy or be given wargear, so every item is rated for reference only.');
+    }
 
     return {
       hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
@@ -1632,7 +1642,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       line.innerHTML = '<b>' + esc(f.name) + '</b> · ' + esc(f.type) + ' · ' +
         (f.cost != null ? f.cost + ' credits · ' : '') +
         'T' + f.T + ' W' + f.W + ' Sv ' + (f.sv ? f.sv + '+' : '–') +
-        (f.equipmentList ? ' · buys from the ' + esc(Tankiness.EQUIPMENT_LISTS[f.equipmentList].name) + ' list' : '') +
+        (f.equipmentList && !Tankiness.EQUIPMENT_LISTS[f.equipmentList].locked
+          ? ' · buys from the ' + esc(Tankiness.EQUIPMENT_LISTS[f.equipmentList].name) + ' list' : '') +
         (f.note ? ' · ' + esc(f.note) : '');
       line.classList.remove('hidden');
     } else {

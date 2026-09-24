@@ -417,9 +417,24 @@ test('off-list gear on the fighter is still rated, and flagged', () => {
 
 test('gang tables carry the transcribed profiles and costs', () => {
   const f = (gang, name) => T.GANGS[gang].fighters.find(x => x.name === name);
-  assert.deepEqual([f('vanSaar', 'Tek').cost, f('vanSaar', 'Tek').T, f('vanSaar', 'Tek').W, f('vanSaar', 'Tek').sv], [30, 3, 1, 6]);
-  assert.deepEqual([f('vanSaar', 'Prime').cost, f('vanSaar', 'Prime').W, f('vanSaar', 'Prime').sv], [115, 3, 5]);
-  assert.deepEqual([f('vanSaar', 'Archeotek').cost, f('vanSaar', 'Archeotek').sv], [85, 4]);
+  const line = (x) => [x.cost, x.S, x.T, x.W, x.I, x.sv];
+  // House Van Saar, pp72-78: cost, S, T, W, I, Sv.
+  assert.deepEqual(line(f('vanSaar', 'Prime')), [115, 3, 3, 3, 3, 5]);
+  assert.deepEqual(line(f('vanSaar', 'Augmek')), [95, 3, 3, 2, 3, 5]);
+  assert.deepEqual(line(f('vanSaar', 'Archeotek')), [85, 3, 3, 2, 2, 4]);
+  assert.deepEqual(line(f('vanSaar', 'Tek')), [30, 3, 3, 1, 2, 6]);
+  assert.deepEqual(line(f('vanSaar', 'Neotek')), [65, 3, 3, 1, 3, 6]);
+  assert.deepEqual(line(f('vanSaar', 'Subtek')), [20, 3, 3, 1, 3, 6]);
+  assert.deepEqual(line(f('vanSaar', 'Cyberachnid')), [90, 2, 2, 1, 5, 6]);
+  // The Cyberachnid cannot take wargear: everything is rated but unavailable.
+  const pet = T.rate({ profile: f('vanSaar', 'Cyberachnid'), wargear: ['refractor'], cost: { base: 90 } },
+    { gang: 'vanSaar', equipmentList: 'none', mode: 'campaign' });
+  assert.ok(pet.gear.filter(g => g.kind === 'wargear' && !g.weapon).every(g => !g.available));
+  assert.ok(pet.notes.some(n => /cannot buy or be given wargear/.test(n)));
+  // House of Chains: cost, S, T, W, I, Sv.
+  assert.deepEqual(line(f('goliath', 'Forge Breaker')), [70, 3, 4, 1, 3, 6]);
+  assert.deepEqual(line(f('furnaceBrutes', 'Forge Master')), [105, 3, 4, 2, 3, 5]);
+  assert.deepEqual(line(f('unborn', 'Unborn Doc')), [145, 3, 4, 3, 4, 5]);
   assert.deepEqual([f('goliath', 'Forge Breaker').cost, f('goliath', 'Forge Breaker').T, f('goliath', 'Forge Breaker').W], [70, 4, 1]);
   assert.deepEqual([f('furnaceBrutes', 'Forge Despot').cost, f('furnaceBrutes', 'Forge Despot').T, f('furnaceBrutes', 'Forge Despot').W, f('furnaceBrutes', 'Forge Despot').sv], [140, 4, 3, 5]);
   assert.deepEqual([f('unborn', 'Malformed').cost, f('unborn', 'Malformed').S, f('unborn', 'Malformed').W, f('unborn', 'Malformed').sv], [80, 4, 2, 6]);
