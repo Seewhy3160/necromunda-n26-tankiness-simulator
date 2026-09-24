@@ -70,7 +70,7 @@ t('the default is a Van Saar Augmek: T3 W2 Sv5+, 95 credits, cheapest to remove 
   assert.ok(ecd > 100 && ecd < 300, `enemy credits ${ecd}`);
   assert.match(await page.textContent('[data-profile]'), /Augmek.*Champion.*95 credits/);
   const minor = await page.textContent('[data-minor]');
-  assert.match(minor, /cheapest tool\s*Plasma gun \/ pistol/);
+  assert.match(minor, /cheapest plan\s*Plasma gun/);
   assert.match(minor, /Hits to Down from the mix\s*\d\.\d\d/);
   assert.match(minor, /Down on the first hit\s*\d+\.\d%/);
 });
@@ -78,7 +78,7 @@ t('the default is a Van Saar Augmek: T3 W2 Sv5+, 95 credits, cheapest to remove 
 t('picking the Tek gives the plain-Ganger reference, and lasguns are the cheap answer to it', async () => {
   await setSel('pick.fighter', 'vsTek');
   assert.match(await page.textContent('[data-minor]'), /vs a plain Ganger\s*×1\.00/);
-  assert.match(await page.textContent('[data-minor]'), /cheapest tool\s*Boltgun/);
+  assert.match(await page.textContent('[data-minor]'), /cheapest plan\s*Boltgun/);
   assert.equal(await page.inputValue('[data-bind="c.base"]'), '30');
   const ecd = parseInt(await out('ecd'), 10);
   assert.ok(Math.abs(parseInt(await out('ecdPer100'), 10) - 100 * ecd / 30) <= 2);
@@ -143,12 +143,13 @@ t('the per-weapon table is sorted cheapest-for-the-enemy first, with the attacke
   assert.match(rows[0].cells[0], /^Boltgun/);
   assert.match(rows[0].cells[1], /Ganger \(BS 4\+\) · 95c/);
   assert.equal(rows[0].cells[2], '1.88');
-  assert.equal(rows[0].cells[4], await out('ecd'));
+  assert.ok(parseInt(rows[0].cells[4], 10) <= parseInt(await out('ecd'), 10) + 1);   // the plan may spill into a second tool
   assert.match(rows[0].cls, /on/);
+  assert.match(rows[0].cells[0], /of the plan/);
   for (let i = 1; i < rows.length; i++) assert.ok(parseFloat(rows[i - 1].cells[4]) <= parseFloat(rows[i].cells[4]));
   // The lasgun row: 55c, 1.75 hits a battle; in +1 cover the Tek saves on 5+, so 4.5 hits to Down.
   const las = rows.find(r => /^Lasgun/.test(r.cells[0]));
-  assert.match(las.cells[1], /Ganger \(BS 4\+\) · 55c/);
+  assert.match(las.cells[1], /4 × Ganger \(BS 4\+\) · 55c/);
   assert.equal(las.cells[2], '1.75');
   assert.equal(las.cells[3], '4.50');
   assert.equal(las.cells[4], String(Math.round(55 * 4.5 / 1.75)));

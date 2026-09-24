@@ -795,9 +795,9 @@ const Tankiness = (function (Engine, Data) {
      shot x ammo uptime (0.55 for Ammo (6+), from the attack simulator's
      analysis; 1 for las). These are stated assumptions, shown on the page
      and overridable through a custom pool. */
-  function attacker(carrier, carrierCost, weaponCost, hitsPerBattle, basis) {
+  function attacker(carrier, carrierCost, weaponCost, hitsPerBattle, count, basis) {
     return { carrier: carrier, carrierCost: carrierCost, weaponCost: weaponCost,
-             cost: carrierCost + weaponCost, hitsPerBattle: hitsPerBattle, basis: basis };
+             cost: carrierCost + weaponCost, hitsPerBattle: hitsPerBattle, count: count, basis: basis };
   }
 
   function profileOf(id, name, role, family, src, cost, atk) {
@@ -823,24 +823,26 @@ const Tankiness = (function (Engine, Data) {
        rating: how much an attacker paid for a hit says nothing about how well
        the target absorbs it. */
     profiles: [
+      /* `count` is how many such packages a reference enemy gang fields; it
+         caps what each tool can do in one battle and sets the default mix. */
       profileOf('meltagun',   'Meltagun',                 'leaderKiller', 'melta',  fromData(Data.ranged, 'Meltagun'), '140',
-        attacker('Champion (BS 3+)', 100, 140, 1.5 * (4 / 6) * 0.55, '6"/12": in range on 1.5 of 4 shooting activations; Ammo (6+)')),
+        attacker('Champion (BS 3+)', 100, 140, 1.5 * (4 / 6) * 0.55, 1, '6"/12": in range on 1.5 of 4 shooting activations; Ammo (6+)')),
       profileOf('plasma',     'Plasma gun / pistol',      'special',      'plasma', fromData(Data.ranged, 'Plasma gun'), '85 / 70',
-        attacker('Champion (BS 3+)', 100, 85, 3 * (4 / 6) * (10 / 6) * 0.55, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (6+)')),
+        attacker('Champion (BS 3+)', 100, 85, 3 * (4 / 6) * (10 / 6) * 0.55, 1, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (6+)')),
       profileOf('boltgun',    'Boltgun / bolt pistol',    'bolt',         'bolt',   fromData(Data.ranged, 'Boltgun'), '55 / 45',
-        attacker('Ganger (BS 4+)', 40, 55, 3 * (3 / 6) * (10 / 6) * 0.75, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (3+)')),
+        attacker('Ganger (BS 4+)', 40, 55, 3 * (3 / 6) * (10 / 6) * 0.75, 1, '12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (3+)')),
       profileOf('handFlamer', 'Hand flamer',              'template',     'flamer', fromData(Data.ranged, 'Hand flamer'), '45',
-        attacker('Ganger (BS 4+)', 40, 45, 1.5 * 1 * 0.55, 'template: auto-hit on 1.5 of 4 activations; Ammo (6+)')),
+        attacker('Ganger (BS 4+)', 40, 45, 1.5 * 1 * 0.55, 1, 'template: auto-hit on 1.5 of 4 activations; Ammo (6+)')),
       profileOf('lasStub',    'Lasgun / laspistol / autogun / stub gun', 'throwaway', 'las', fromData(Data.ranged, 'Laspistol'), '15 / 5',
-        attacker('Ganger (BS 4+)', 40, 15, 3.5 * (3 / 6) * 1, 'lasgun 16"/24": in range on 3.5 of 4 activations; no ammo roll')),
+        attacker('Ganger (BS 4+)', 40, 15, 3.5 * (3 / 6) * 1, 4, 'lasgun 16"/24": in range on 3.5 of 4 activations; no ammo roll')),
       profileOf('stiletto',   'Stiletto knife (S3)',      'melee',        'melee',  fromData(Data.melee, 'Stiletto knife'), '25',
-        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 'one charge a battle, 2 Attack dice')),
+        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 2, 'one charge a battle, 2 Attack dice')),
       profileOf('chainsword', 'Chainsword (S3)',          'melee',        'melee',  fromData(Data.melee, 'Chainsword'), '20',
-        attacker('Champion (WS 3+)', 100, 20, 1 * 3 * (4 / 6), 'one charge a battle, 3 Attack dice')),
+        attacker('Champion (WS 3+)', 100, 20, 1 * 3 * (4 / 6), 1, 'one charge a battle, 3 Attack dice')),
       profileOf('powerSword', 'Power sword (S3)',         'melee',        'melee',  fromData(Data.melee, 'Power sword'), '40',
-        attacker('Champion (WS 3+)', 100, 40, 1 * 3 * (4 / 6), 'one charge a battle, 3 Attack dice')),
+        attacker('Champion (WS 3+)', 100, 40, 1 * 3 * (4 / 6), 1, 'one charge a battle, 3 Attack dice')),
       profileOf('cleaver',    'Cleaver (S3, Goliath)',    'melee',        'melee',  CLEAVER, '25',
-        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 'one charge a battle, 2 Attack dice'))
+        attacker('Ganger (WS 4+)', 40, 25, 1 * 2 * (3 / 6), 1, 'one charge a battle, 2 Attack dice'))
     ],
     /* Named opponent profiles: how much of the pool each role carries. */
     weights: {
@@ -850,8 +852,22 @@ const Tankiness = (function (Engine, Data) {
       volumeFire:  { leaderKiller: 0.05, special: 0.10, bolt: 0.15, template: 0.25, throwaway: 0.35, melee: 0.10 }
     }
   };
+  /* The reference gang's own mix: each tool's share of the hits its packages
+     land in a battle. This is the default opponent profile. */
+  (function () {
+    const w = {};
+    let total = 0;
+    for (const p of POOL_V1.profiles) {
+      const h = p.attacker.count * p.attacker.hitsPerBattle;
+      w[p.role] = (w[p.role] || 0) + h;
+      total += h;
+    }
+    for (const k in w) w[k] /= total;
+    POOL_V1.weights.referenceGang = w;
+  })();
   const OPPONENTS = [
-    { id: 'default', name: 'Default mix' },
+    { id: 'referenceGang', name: 'Reference gang (from the attacker packages)' },
+    { id: 'default', name: 'Even role mix' },
     { id: 'plasmaMelta', name: 'Plasma / melta heavy' },
     { id: 'meleeRush', name: 'Melee rush' },
     { id: 'volumeFire', name: 'Volume fire' }
@@ -1189,7 +1205,7 @@ const Tankiness = (function (Engine, Data) {
     const opts = {
       pool: pool,
       endState: o.endState === 'ooa' ? 'ooa' : 'down',
-      opponent: o.opponent || 'default',
+      opponent: o.opponent || (pool.weights.referenceGang ? 'referenceGang' : Object.keys(pool.weights)[0]),
       mode: o.mode === 'campaign' ? 'campaign' : 'creation',
       // Fighters use cover: +1 to armour saves within the weapon's short range
       // is the default; 0 is open ground, 2 is long-range cover (p76).
@@ -1221,9 +1237,44 @@ const Tankiness = (function (Engine, Data) {
                hits: r.hits, pDownFirst: r.pDownFirst, enemyCredits: ecd };
     });
     const mix = expectedHits(opts.pool.profiles.map((p, i) => ({ prof: p, weight: opts.weights[i] })), t, opts);
-    let best = null;
-    for (const p of per) if (p.enemyCredits != null && (best === null || p.enemyCredits < best.enemyCredits)) best = p;
-    return { target: t, per: per, mix: mix, best: best };
+    const plan = cheapestPlan(per);
+    const best = plan ? per.find(p => p.id === plan.steps[0].id) : null;
+    return { target: t, per: per, mix: mix, plan: plan, best: best };
+  }
+
+  /* The cheapest way for the reference enemy gang to Down the fighter with
+     the tools it actually fields. Tools are taken in order of enemy credits
+     to Down, each limited to the hits its packages land in one battle
+     (count x hits per battle), until the hits add up to a Down; progress is
+     counted in each tool's own hits to Down. A tool that is not needed is
+     not used, so a meltagun never counts against a fighter a bolter removes
+     first, and a tool that is exhausted hands over to the next, so a fighter
+     that only plasma removes cheaply still earns its value once the one
+     plasma champion has fired for the battle. If every tool together falls
+     short, the whole gang needs more than one battle and the cost scales. */
+  function cheapestPlan(per) {
+    const tools = per.filter(p => p.enemyCredits != null && p.hits > 0 && p.attacker.count > 0)
+      .sort((a, b) => a.enemyCredits - b.enemyCredits);
+    if (!tools.length) return null;
+    let progress = 0, credits = 0;
+    const steps = [];
+    for (const p of tools) {
+      const full = p.attacker.count * p.attacker.hitsPerBattle / p.hits;   // share of a Down this tool lands in a battle
+      const use = Math.min(full, 1 - progress);
+      if (use <= 1e-12) break;
+      const c = p.attacker.cost * p.attacker.count * (use / full);
+      steps.push({ id: p.id, name: p.name, share: use, credits: c });
+      progress += use;
+      credits += c;
+      if (progress >= 1 - 1e-12) break;
+    }
+    let battles = 1;
+    if (progress < 1 - 1e-12) {
+      battles = 1 / progress;
+      for (const s of steps) { s.share *= battles; s.credits *= battles; }
+      credits *= battles;
+    }
+    return { credits: credits, steps: steps, battles: battles };
   }
 
   function geoMean(values, weights) {
@@ -1308,7 +1359,7 @@ const Tankiness = (function (Engine, Data) {
        enemy weapon mix. TI is the same figure relative to a plain Ganger. */
     const hits = main.mix.hits;
     const ti = 100 * hits / base.mix.hits;
-    const enemyCredits = main.best ? main.best.enemyCredits : null;
+    const enemyCredits = main.plan ? main.plan.credits : null;
 
     const c = fighter.cost || {};
     const cost = {
@@ -1323,7 +1374,8 @@ const Tankiness = (function (Engine, Data) {
     const perProfile = main.per.map((p, i) => ({
       id: p.id, name: p.name, role: p.role, family: p.family, cost: p.cost, weight: weights[i], attacker: p.attacker,
       hits: p.hits, pDownFirst: p.pDownFirst, vsGanger: p.hits / base.per[i].hits, gangerHits: base.per[i].hits,
-      enemyCredits: p.enemyCredits, cheapest: main.best === p
+      enemyCredits: p.enemyCredits, cheapest: main.best === p,
+      planShare: main.plan ? (main.plan.steps.find(s => s.id === p.id) || { share: 0 }).share : 0
     }));
 
     /* Marginal value of every rateable item, selected or not. For an item in
@@ -1339,7 +1391,7 @@ const Tankiness = (function (Engine, Data) {
       const dTi = tiWith - tiWithout;
       // The marginal that matters is in enemy credits, against whichever
       // tool the enemy would switch to once the item is on.
-      const ecdWith = sWith.best ? sWith.best.enemyCredits : null, ecdWithout = sWithout.best ? sWithout.best.enemyCredits : null;
+      const ecdWith = sWith.plan ? sWith.plan.credits : null, ecdWithout = sWithout.plan ? sWithout.plan.credits : null;
       const ratio = ecdWith != null && ecdWithout > 0 ? ecdWith / ecdWithout : hitsWith / hitsWithout;
       const dEnemyCredits = ecdWith != null && ecdWithout != null ? ecdWith - ecdWithout : null;
       const g = it.cost || 0;
@@ -1389,6 +1441,7 @@ const Tankiness = (function (Engine, Data) {
 
     return {
       enemyCredits: enemyCredits, enemyCreditsPer100: enemyCreditsPer100,
+      plan: main.plan ? { steps: main.plan.steps, battles: main.plan.battles } : null,
       bestTool: main.best ? { id: main.best.id, name: main.best.name, attacker: main.best.attacker, hits: main.best.hits } : null,
       hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
       ti: ti, tp100: tp100, gangerHits: base.mix.hits,
@@ -1587,9 +1640,9 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.appendChild(tableBlock('By weapon: what it costs the enemy',
       ['Weapon', 'Attacker package', 'Hits per battle', 'Hits to Down', 'Enemy credits to Down', 'Down on first hit', 'vs Ganger'],
       'weapons',
-      'Sorted cheapest for the enemy first: the top row is the tool a sensible opponent uses on this fighter, and the headline. ' +
-      'Enemy credits to Down = package cost × hits to Down ÷ hits per battle. Hits to Down is the target-side figure ' +
-      'the loadout ranker consumes.'));
+      'Sorted cheapest for the enemy first. Enemy credits to Down = package cost × hits to Down ÷ hits per battle, for ' +
+      'that tool alone. ● marks the tools in the enemy’s cheapest plan: taken in this order, each limited to what its ' +
+      'packages land in one battle, until the hits add up to a Down. Hits to Down is the target-side figure the loadout ranker consumes.'));
     root.appendChild(assumptionsBlock());
   }
 
@@ -1601,8 +1654,10 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       'Each weapon then has an attacker package (below): a typical carrier plus the weapon, and how many hits it lands ' +
       'on one target over a battle at its range, ammo included. <b>Enemy credits to Down</b> for a weapon is package cost ' +
       '× hits to Down ÷ hits per battle: the slice of an enemy gang that has to spend a whole battle on this ' +
-      'fighter. The headline takes the <b>enemy’s cheapest tool</b>, so an expensive weapon only counts where it is ' +
-      'really the best answer, and damage that a hit did not need is priced as dearly as damage it did. ' +
+      'fighter with that tool. The headline is the <b>enemy’s cheapest plan</b>: tools taken in that order, each ' +
+      'limited to what the reference gang’s packages of it land in one battle, until the hits add up to a Down. So an ' +
+      'expensive weapon only counts where it is really the best answer, damage that a hit did not need is priced as ' +
+      'dearly as damage it did, and once the one plasma champion has fired for the battle the next tools take over. ' +
       '<b>Enemy credits per 100c</b> divides by base + weapons + other + defensive gear: above 100, the fighter costs ' +
       'the enemy more to remove than it cost you.' }));
     body.appendChild(el('p', { 'data-attackers': '1' }));
@@ -1670,8 +1725,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.querySelector('[data-out="total"]').textContent = res.cost.total;
 
     const bits = [];
-    if (res.bestTool) bits.push('Enemy’s cheapest tool <b>' + esc(res.bestTool.name) + '</b> on a ' + esc(res.bestTool.attacker.carrier) +
-      ' (' + res.bestTool.hits.toFixed(2) + ' hits)');
+    if (res.plan) bits.push('Enemy’s cheapest plan ' + res.plan.steps.map(s => '<b>' + esc(s.name.split(' (')[0].split(' / ')[0]) + '</b> ' + pct(s.share)).join(', ') +
+      (res.plan.battles > 1.0001 ? ' (over ' + res.plan.battles.toFixed(1) + ' battles)' : ''));
     bits.push(
       'Hits to Down from the mix <b>' + res.hitsToDown.toFixed(2) + '</b>',
       'Down on the first hit <b>' + pct(res.pDownFirst) + '</b>',
@@ -1727,9 +1782,10 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     wBody.innerHTML = '';
     const byCost = (a, b) => (a.enemyCredits == null ? Infinity : a.enemyCredits) - (b.enemyCredits == null ? Infinity : b.enemyCredits);
     for (const p of res.perProfile.slice().sort(byCost)) {
-      const tr = el('tr', { class: p.cheapest ? 'on' : '' });
-      tr.appendChild(el('td', {}, el('span', { text: p.name }), el('span', { class: 'src', text: (p.cost ? p.cost + 'c · ' : '') + pct(p.weight) + ' of the mix' })));
-      tr.appendChild(el('td', {}, el('span', { text: p.attacker ? p.attacker.carrier + ' · ' + p.attacker.cost + 'c' : '–' }),
+      const tr = el('tr', { class: p.planShare > 0 ? 'on' : '' });
+      tr.appendChild(el('td', {}, el('span', { text: p.name }), el('span', { class: 'src', text: (p.cost ? p.cost + 'c · ' : '') + pct(p.weight) + ' of the mix' +
+        (p.planShare > 0 ? ' · ' + pct(p.planShare) + ' of the plan' : '') })));
+      tr.appendChild(el('td', {}, el('span', { text: p.attacker ? (p.attacker.count > 1 ? p.attacker.count + ' × ' : '') + p.attacker.carrier + ' · ' + p.attacker.cost + 'c' : '–' }),
         el('span', { class: 'src', text: p.attacker ? p.attacker.basis : '' })));
       tr.appendChild(td(p.attacker ? p.attacker.hitsPerBattle.toFixed(2) : '–'));
       tr.appendChild(td(p.hits.toFixed(2)));
@@ -1740,10 +1796,10 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     }
 
     // attacker packages in the assumptions block
-    root.querySelector('[data-attackers]').innerHTML = '<b>Attacker packages</b> (carrier + weapon, hits per battle on one target): ' +
+    root.querySelector('[data-attackers]').innerHTML = '<b>Attacker packages</b> (carrier + weapon, hits per battle on one target, how many the reference gang fields): ' +
       res.perProfile.map(p => esc(p.name) + ': ' + esc(p.attacker.carrier) + ' + ' + p.attacker.weaponCost + 'c = ' + p.attacker.cost +
-        'c, ' + p.attacker.hitsPerBattle.toFixed(2) + ' hits (' + esc(p.attacker.basis) + ')').join('; ') +
-      '. Ammo (6+) uptime is taken as 0.55. Carrier costs are round figures for a typical ganger or champion. ' +
+        'c, ' + p.attacker.hitsPerBattle.toFixed(2) + ' hits, ×' + p.attacker.count + ' (' + esc(p.attacker.basis) + ')').join('; ') +
+      '. Ammo (6+) uptime is taken as 0.55, Ammo (3+) as 0.75. Carrier costs are round figures for a typical ganger or champion. ' +
       'These are assumptions, not rules; a custom pool can replace them.';
 
     // profile line for the picked fighter

@@ -294,9 +294,9 @@ test('endState ooa counts only Out of Action; Seriously Injured fighters keep ta
 
 test('hits to Down is the expected count when every hit is drawn from the weapon mix', () => {
   const t = tgt(CHAMPION);
-  const w = T.poolWeights(pool, 'default');
-  const mix = T.expectedHits(pool.profiles.map((p, i) => ({ prof: p, weight: w[i] })), t, opts());
   const r = rate(CHAMPION);
+  const w = T.poolWeights(pool, r.options.opponent);
+  const mix = T.expectedHits(pool.profiles.map((p, i) => ({ prof: p, weight: w[i] })), t, opts());
   near(r.hitsToDown, mix.hits);
   // The first-hit chance of going Down is exactly the weighted mix of the per-weapon chances.
   let p1 = 0;
@@ -504,20 +504,59 @@ test('enemy credits to Down price each weapon by its attacker package, and the h
   near(las.attacker.hitsPerBattle, 1.75);
   const melta = r.perProfile.find(p => p.id === 'meltagun');
   near(melta.enemyCredits, 240 * (1 / ((5 / 6) * (26 / 27))) / (1.5 * (4 / 6) * 0.55));
-  // The enemy's cheapest tool is the headline; on chaff that is a cheap ganger gun, never the meltagun.
+  // The enemy's cheapest plan starts with its cheapest tool; on chaff that is a cheap ganger gun, never the meltagun.
   assert.equal(r.bestTool.id, 'boltgun');
+  assert.equal(r.plan.steps[0].id, 'boltgun');
   assert.ok(las.enemyCredits < melta.enemyCredits / 3);
-  near(r.enemyCredits, Math.min(...r.perProfile.map(p => p.enemyCredits)));
   near(r.enemyCreditsPer100, 100 * r.enemyCredits / 30);
   assert.equal(r.perProfile.filter(p => p.cheapest).length, 1);
-  // A Brute in heavy carapace is cheapest to remove with plasma, not lasguns.
-  assert.equal(rate({ T: 4, W: 4, sv: 4 }, { wargear: ['heavyCarapace'] }).bestTool.id, 'plasma');
+  // The plan, recomputed independently: tools in cost order, each capped at count x hits per battle.
+  const replan = (res) => {
+    const tools = res.perProfile.slice().sort((a, b) => a.enemyCredits - b.enemyCredits);
+    let progress = 0, credits = 0;
+    for (const p of tools) {
+      const full = p.attacker.count * p.attacker.hitsPerBattle / p.hits;
+      const use = Math.min(full, 1 - progress);
+      if (use <= 0) break;
+      credits += p.attacker.cost * p.attacker.count * use / full;
+      progress += use;
+    }
+    return progress < 1 ? credits / progress : credits;
+  };
+  near(r.enemyCredits, replan(r));
+  // The bolter ganger alone lands 1.88 hits a battle against 1.69 needed, so it does the whole job on its own.
+  const bolt = r.perProfile.find(p => p.id === 'boltgun');
+  assert.ok(bolt.attacker.count * bolt.attacker.hitsPerBattle > bolt.hits);
+  near(r.enemyCredits, bolt.enemyCredits);
+  assert.equal(r.plan.steps.length, 1);
+  near(r.plan.steps[0].share, 1);
+  // A Brute in heavy carapace: plasma first, then the plan spills into other tools, and the cost sits between
+  // the cheapest tool alone and the sum of everything used.
+  const brute = rate({ T: 4, W: 4, sv: 4 }, { wargear: ['heavyCarapace'] });
+  assert.equal(brute.plan.steps[0].id, 'plasma');
+  assert.ok(brute.plan.steps.length > 1);
+  assert.ok(brute.enemyCredits > brute.perProfile.find(p => p.id === 'plasma').enemyCredits);
+  near(brute.enemyCredits, replan(brute));
+  near(brute.plan.steps.reduce((a, s) => a + s.share, 0), 1);
+  near(brute.plan.steps.reduce((a, s) => a + s.credits, 0), brute.enemyCredits);
   // Overflow: a meltagun hit is priced the same on a W1 and a W3 fighter, so the W3 fighter
   // gains its value against the cheaper tools instead.
   const w1 = rate(GANGER).perProfile.find(p => p.id === 'meltagun').enemyCredits;
   const w3 = rate({ T: 3, W: 3, sv: 6 }).perProfile.find(p => p.id === 'meltagun').enemyCredits;
   near(w1, w3);
   assert.ok(rate({ T: 3, W: 3, sv: 6 }).enemyCredits > 2 * rate(GANGER).enemyCredits);
+  // Iron Flesh on a Forge Despot: plasma stays the cheapest tool and is unchanged by the fourth Wound,
+  // but once the plasma champion's battle is spent the other tools carry the cost, so the marginal is positive.
+  const despot = rate({ T: 4, W: 3, sv: 5 }, {}, { gang: 'furnaceBrutes' });
+  const flesh = despot.gear.find(g => g.id === 'ironFlesh');
+  assert.equal(despot.plan.steps[0].id, 'plasma');
+  near(flesh.byRole.special, 0, 1e-9);
+  assert.ok(flesh.dEnemyCredits > 20, `Iron Flesh ${flesh.dEnemyCredits}`);
+  // The reference-gang mix is the default and is derived from the package counts.
+  assert.equal(despot.options.opponent, 'referenceGang');
+  const rg = pool.weights.referenceGang;
+  near(Object.values(rg).reduce((a, b) => a + b, 0), 1);
+  assert.ok(rg.throwaway > rg.leaderKiller * 5);
   // No cost given: the per-100 figure is null; a pool without attacker packages rates hits only.
   assert.equal(T.rate({ profile: GANGER }).enemyCreditsPer100, null);
   const bare = { version: 'bare', meleeStrength: 3, roles: [{ id: 'x', name: 'x' }],
@@ -555,7 +594,7 @@ test('rate is pure: same input, same output, and unknown ids are reported not th
   assert.deepEqual(a, b);
   assert.ok(a.problems.some(p => /bogus/.test(p)));
   assert.equal(a.poolVersion, 'v1');
-  assert.deepEqual(a.options, { endState: 'down', opponent: 'default', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar' });
+  assert.deepEqual(a.options, { endState: 'down', opponent: 'referenceGang', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar' });
   assert.equal(T.rate({ profile: CHAMPION }, { cover: 0 }).options.cover, 0);
   assert.equal(T.rate({ profile: CHAMPION }, { cover: '2' }).options.cover, 2);
 });

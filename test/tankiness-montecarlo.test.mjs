@@ -149,6 +149,7 @@ for (const [name, weapon, t, o] of CASES) {
 /* The headline: every hit drawn from the enemy weapon mix. */
 const MIX_CASES = [
   ['Ganger, default mix', { T: 3, W: 1, sv: 6 }, [], 'default', {}],
+  ['Champion, reference-gang mix', { T: 3, W: 2, sv: 5 }, [], 'referenceGang', {}],
   ['Champion with a refractor field, default mix', { T: 3, W: 2, sv: 5 }, ['refractor'], 'default', {}],
   ['Prime with a Hystrar shield and Dodge, melee rush', { T: 3, W: 3, sv: 5 }, ['hystrarShield', 'dodge'], 'meleeRush', {}],
   ['Forge Despot with heavy carapace and a bio-booster, plasma/melta heavy, +1 cover', { T: 4, W: 3, sv: 5 }, ['heavyCarapace', 'bioBooster'], 'plasmaMelta', { cover: 1 }],

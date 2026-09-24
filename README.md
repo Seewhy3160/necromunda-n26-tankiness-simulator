@@ -73,8 +73,8 @@ takes the fighter out of the fight. *Out of Action only* is an option.
 **Scenario options:** cover (p76: +1 to armour saves against shooting within
 the weapon's short range, which is the **default**, +2 within long range, or
 none for open ground; invulnerable saves ignore it), the end state, and a
-named opponent profile that re-weights the pool (default mix, plasma/melta
-heavy, melee rush, volume fire). Every figure in this README is at the
+named opponent profile that re-weights the pool (the reference gang's own mix
+by default, an even role mix, plasma/melta heavy, melee rush, volume fire). Every figure in this README is at the
 default +1 cover unless it says otherwise.
 
 **Deliberately left out:** stimm-slug stash, Unstoppable, Medicate,
@@ -157,25 +157,29 @@ battle at its range, ammo included (the table below). Then
     enemy credits to Down (w) = package cost × H_w ÷ hits per battle
 
 is the slice of an enemy gang that must spend a whole battle on this fighter
-with weapon *w*. The headline is the **minimum over the pool**: the enemy's
-cheapest tool for this particular fighter. On a Tek that is a lasgun ganger
-(113 credits); on a Champion, a plasma champion; on a Brute in carapace,
-plasma again but at nearly four times the price. Overflow is priced in by
-construction: the meltagun costs the same to fire at a W1 or a W3 fighter, so
-the W3 fighter earns its value against the cheaper tools instead. **Enemy
-credits per 100 credits** divides by base + weapons + other + defensive gear.
+with weapon *w* alone. The headline is the **enemy's cheapest plan**: the
+reference gang fields a set number of each package (one plasma champion, four
+lasgun gangers, and so on), so each tool can land only so many hits in a
+battle. Tools are taken in order of cost until the hits add up to a Down,
+progress counted in each tool's own hits to Down. A tool that is not needed
+is not used, so the meltagun never counts against a fighter a bolter ganger
+removes first; a tool that is used up hands over to the next, so a Forge
+Despot with Iron Flesh, whom plasma Downs in two hits with or without the
+extra Wound, still earns its value once the one plasma champion has fired
+for the battle. If every tool together falls short, the whole gang needs more
+than one battle and the cost scales. Overflow is priced in by construction:
+the meltagun costs the same to fire at a W1 or a W3 fighter, so the W3
+fighter earns its value against the cheaper tools instead. **Enemy credits
+per 100 credits** divides by base + weapons + other + defensive gear.
 
-Two consequences worth knowing. The rule is deliberately harsh on gear: an
-item that does not touch the enemy's current cheapest tool shows no gain
-(mesh armour on a Champion whom plasma removes cheapest), and an item that
-does can only push the cost up until the next tool takes over, which the
-gear table shows as "then best". And the packages are assumptions, not
-rules: 40-credit gangers and 100-credit champions, Ammo (6+) uptime of 0.55,
-activations in range by weapon range. They are printed on the page and can be
-replaced through a custom pool.
+The packages and their counts are assumptions, not rules: 40-credit gangers
+and 100-credit champions, Ammo (6+) uptime of 0.55, activations in range by
+weapon range. They are printed on the page and can be replaced through a
+custom pool. The same counts give the default weapon mix ("reference gang")
+used for hits to Down from the mix.
 
 **Hits to Down from the mix** (every hit drawn at random from the pool by its
-weight) is still reported: it is the target-side figure the loadout ranker
+weight, by default the reference gang's own share of hits) is still reported: it is the target-side figure the loadout ranker
 multiplies by an attacker's hits per activation, and a **Tankiness Index**
 (the same relative to a plain Ganger, times 100) rides along as a footnote.
 
@@ -204,17 +208,17 @@ hand-edit them.
 
 <!-- generated:enemyCredits -->
 
-| Fighter | Cost | Enemy credits to Down | Per 100 credits | Enemy’s cheapest tool | Hits to Down (mix) |
+| Fighter | Cost | Enemy credits to Down | Per 100 credits | Enemy’s cheapest plan | Hits to Down (mix) |
 |---|---|---|---|---|---|
-| Van Saar Tek | 30 | 103 | 342 | Boltgun / bolt pistol on a Ganger (BS 4+) | 2.34 |
-| Van Saar Augmek | 95 | 204 | 215 | Plasma gun / pistol on a Champion (BS 3+) | 3.95 |
-| Van Saar Prime | 115 | 356 | 310 | Boltgun / bolt pistol on a Ganger (BS 4+) | 5.32 |
-| Forge Despot | 140 | 386 | 276 | Plasma gun / pistol on a Champion (BS 3+) | 5.97 |
-| Brute (T4 W4 4+) | 150 | 482 | 322 | Plasma gun / pistol on a Champion (BS 3+) | 9.16 |
-| Augmek + refractor field | 145 | 242 | 124 | Boltgun / bolt pistol on a Ganger (BS 4+) | 4.74 |
-| Augmek + Hystrar shield | 130 | 255 | 155 | Plasma gun / pistol on a Champion (BS 3+) | 4.81 |
-| Augmek + heavy carapace | 235 | 341 | 91 | Plasma gun / pistol on a Champion (BS 3+) | 6.07 |
-| Prime + heavy carapace | 255 | 630 | 159 | Power sword (S3) on a Champion (WS 3+) | 8.02 |
+| Van Saar Tek | 30 | 105 | 352 | Boltgun 93%, Lasgun 7% | 2.79 |
+| Van Saar Augmek | 95 | 208 | 219 | Plasma gun 91%, Boltgun 9% | 5.37 |
+| Van Saar Prime | 115 | 392 | 341 | Boltgun 27%, Plasma gun 48%, Lasgun 25% | 7.38 |
+| Forge Despot | 140 | 446 | 319 | Plasma gun 48%, Boltgun 20%, Stiletto knife 25%, Meltagun 7% | 9.02 |
+| Brute (T4 W4 4+) | 150 | 784 | 522 | Plasma gun 38%, Boltgun 11%, Stiletto knife 15%, Power sword 14%, Meltagun 22% | 14.38 |
+| Augmek + refractor field | 145 | 249 | 128 | Boltgun 39%, Plasma gun 61% | 6.13 |
+| Augmek + Hystrar shield | 130 | 274 | 166 | Plasma gun 72%, Boltgun 28% | 6.83 |
+| Augmek + heavy carapace | 235 | 394 | 105 | Plasma gun 54%, Power sword 31%, Lasgun 15% | 8.53 |
+| Prime + heavy carapace | 255 | 646 | 163 | Power sword 22%, Plasma gun 29%, Meltagun 37%, Lasgun 12% | 11.60 |
 
 <!-- /generated:enemyCredits -->
 
@@ -222,17 +226,17 @@ The attacker packages behind those figures:
 
 <!-- generated:attackers -->
 
-| Weapon | Carrier | Weapon (credits) | Package (credits) | Hits per battle | Basis |
-|---|---|---|---|---|---|
-| Meltagun | Champion (BS 3+) | 140 | 240 | 0.55 | 6"/12": in range on 1.5 of 4 shooting activations; Ammo (6+) |
-| Plasma gun / pistol | Champion (BS 3+) | 85 | 185 | 1.83 | 12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (6+) |
-| Boltgun / bolt pistol | Ganger (BS 4+) | 55 | 95 | 1.88 | 12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (3+) |
-| Hand flamer | Ganger (BS 4+) | 45 | 85 | 0.83 | template: auto-hit on 1.5 of 4 activations; Ammo (6+) |
-| Lasgun / laspistol / autogun / stub gun | Ganger (BS 4+) | 15 | 55 | 1.75 | lasgun 16"/24": in range on 3.5 of 4 activations; no ammo roll |
-| Stiletto knife (S3) | Ganger (WS 4+) | 25 | 65 | 1.00 | one charge a battle, 2 Attack dice |
-| Chainsword (S3) | Champion (WS 3+) | 20 | 120 | 2.00 | one charge a battle, 3 Attack dice |
-| Power sword (S3) | Champion (WS 3+) | 40 | 140 | 2.00 | one charge a battle, 3 Attack dice |
-| Cleaver (S3, Goliath) | Ganger (WS 4+) | 25 | 65 | 1.00 | one charge a battle, 2 Attack dice |
+| Weapon | Carrier | Weapon (credits) | Package (credits) | Hits per battle | In the reference gang | Basis |
+|---|---|---|---|---|---|---|
+| Meltagun | Champion (BS 3+) | 140 | 240 | 0.55 | 1 | 6"/12": in range on 1.5 of 4 shooting activations; Ammo (6+) |
+| Plasma gun / pistol | Champion (BS 3+) | 85 | 185 | 1.83 | 1 | 12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (6+) |
+| Boltgun / bolt pistol | Ganger (BS 4+) | 55 | 95 | 1.88 | 1 | 12"/24": in range on 3 of 4 activations; Rapid Fire (1); Ammo (3+) |
+| Hand flamer | Ganger (BS 4+) | 45 | 85 | 0.83 | 1 | template: auto-hit on 1.5 of 4 activations; Ammo (6+) |
+| Lasgun / laspistol / autogun / stub gun | Ganger (BS 4+) | 15 | 55 | 1.75 | 4 | lasgun 16"/24": in range on 3.5 of 4 activations; no ammo roll |
+| Stiletto knife (S3) | Ganger (WS 4+) | 25 | 65 | 1.00 | 2 | one charge a battle, 2 Attack dice |
+| Chainsword (S3) | Champion (WS 3+) | 20 | 120 | 2.00 | 1 | one charge a battle, 3 Attack dice |
+| Power sword (S3) | Champion (WS 3+) | 40 | 140 | 2.00 | 1 | one charge a battle, 3 Attack dice |
+| Cleaver (S3, Goliath) | Ganger (WS 4+) | 25 | 65 | 1.00 | 1 | one charge a battle, 2 Attack dice |
 
 <!-- /generated:attackers -->
 
@@ -242,16 +246,16 @@ The attacker packages behind those figures:
 
 | Weapon | Cost | Share of hits | Ganger | Champion | Leader | Goliath champion | Brute |
 |---|---|---|---|---|---|---|---|
-| Meltagun | 140 | 8% | 1.25 | 1.25 | 1.25 | 1.25 | 2.45 |
-| Plasma gun / pistol | 85 / 70 | 22% | 1.69 | 2.02 | 3.82 | 2.02 | 4.78 |
-| Boltgun / bolt pistol | 55 / 45 | 15% | 2.02 | 4.78 | 7.03 | 6.38 | 16.50 |
-| Hand flamer | 45 | 15% | 3.80 | 7.87 | 10.88 | 11.81 | 30.94 |
-| Lasgun / laspistol / autogun / stub gun | 15 / 5 | 20% | 4.50 | 10.00 | 14.00 | 15.00 | 40.50 |
-| Stiletto knife (S3) | 25 | 5% | 2.70 | 5.63 | 7.88 | 5.63 | 13.50 |
-| Chainsword (S3) | 20 | 5% | 2.95 | 6.68 | 9.68 | 9.56 | 24.75 |
-| Power sword (S3) | 40 | 5% | 3.00 | 5.00 | 7.00 | 7.50 | 14.73 |
-| Cleaver (S3, Goliath) | 25 | 5% | 2.25 | 5.10 | 7.50 | 7.65 | 18.56 |
-| **Enemy mix (headline)** |  | 100% | **2.34** | **3.95** | **5.32** | **4.42** | **9.16** |
+| Meltagun | 140 | 3% | 1.25 | 1.25 | 1.25 | 1.25 | 2.45 |
+| Plasma gun / pistol | 85 / 70 | 10% | 1.69 | 2.02 | 3.82 | 2.02 | 4.78 |
+| Boltgun / bolt pistol | 55 / 45 | 10% | 2.02 | 4.78 | 7.03 | 6.38 | 16.50 |
+| Hand flamer | 45 | 4% | 3.80 | 7.87 | 10.88 | 11.81 | 30.94 |
+| Lasgun / laspistol / autogun / stub gun | 15 / 5 | 37% | 4.50 | 10.00 | 14.00 | 15.00 | 40.50 |
+| Stiletto knife (S3) | 25 | 9% | 2.70 | 5.63 | 7.88 | 5.63 | 13.50 |
+| Chainsword (S3) | 20 | 9% | 2.95 | 6.68 | 9.68 | 9.56 | 24.75 |
+| Power sword (S3) | 40 | 9% | 3.00 | 5.00 | 7.00 | 7.50 | 14.73 |
+| Cleaver (S3, Goliath) | 25 | 9% | 2.25 | 5.10 | 7.50 | 7.65 | 18.56 |
+| **Enemy mix (headline)** |  | 100% | **2.79** | **5.37** | **7.38** | **6.61** | **14.38** |
 
 <!-- /generated:hits -->
 
@@ -264,10 +268,10 @@ credits spent on the item in brackets. Base costs exclude weapons.
 
 | Fighter (credits) | No gear | + 'Hystrar' pattern energy shield (35) | + Refractor field (50) | + Mesh armour (40) | + Bio-booster (25) |
 |---|---|---|---|---|---|
-| Prime (115) | 5.32 | 6.40 (+3.10) | 6.40 (+2.16) | 5.46 (+0.36) | 5.80 (+1.91) |
-| Augmek (95) | 3.95 | 4.81 (+2.47) | 4.74 (+1.58) | 4.06 (+0.26) | 4.47 (+2.07) |
-| Archeotek (85) | 4.81 | 6.07 (+3.57) | 5.35 (+1.07) | 4.97 (+0.38) | 5.43 (+2.46) |
-| Tek (30) | 2.34 | 2.78 (+1.25) | 3.04 (+1.39) | 2.40 (+0.15) | 2.81 (+1.87) |
+| Prime (115) | 7.38 | 9.32 (+5.54) | 8.44 (+2.13) | 7.91 (+1.33) | 8.04 (+2.67) |
+| Augmek (95) | 5.37 | 6.83 (+4.18) | 6.13 (+1.52) | 5.77 (+1.01) | 6.06 (+2.77) |
+| Archeotek (85) | 6.83 | 8.53 (+4.86) | 7.34 (+1.02) | 7.49 (+1.65) | 7.70 (+3.48) |
+| Tek (30) | 2.79 | 3.38 (+1.67) | 3.49 (+1.38) | 2.96 (+0.41) | 3.39 (+2.39) |
 
 <!-- /generated:vanSaar -->
 
@@ -285,10 +289,10 @@ Heavy carapace reaches a Goliath fighter only through the Trading Post
 
 | Fighter (credits) | No gear | + Iron Flesh (30) | + Scar Tissue (15) | + Refractor field (50) | + Heavy carapace (140) | + Reduced Bone Density (-10) |
 |---|---|---|---|---|---|---|
-| Forge Breaker (70) | 2.76 | 3.80 (+3.47) | 3.28 (+3.51) | 3.65 (+1.79) | 3.97 (+0.87) | 2.34 |
-| Malformed (80) | 3.80 | 5.17 (+4.57) | 4.37 (+3.79) | 5.11 (+2.63) | 5.31 (+1.08) | 3.36 |
-| Forge Master / Twice Born (105) | 4.42 | 5.97 (+5.15) | 5.08 (+4.37) | 5.41 (+1.98) | 6.72 (+1.64) | 3.95 |
-| Forge Despot (140) | 5.97 | 7.67 (+5.69) | 6.55 (+3.85) | 7.30 (+2.67) | 8.89 (+2.08) | 5.32 |
+| Forge Breaker (70) | 3.54 | 5.52 (+6.61) | 4.08 (+3.62) | 4.48 (+1.88) | 5.41 (+1.34) | 2.79 |
+| Malformed (80) | 5.52 | 7.58 (+6.87) | 6.12 (+4.01) | 7.01 (+2.97) | 8.28 (+1.97) | 4.46 |
+| Forge Master / Twice Born (105) | 6.61 | 9.02 (+8.05) | 7.33 (+4.80) | 7.62 (+2.03) | 10.42 (+2.73) | 5.37 |
+| Forge Despot (140) | 9.02 | 11.56 (+8.46) | 9.70 (+4.54) | 10.45 (+2.85) | 14.07 (+3.60) | 7.38 |
 
 <!-- /generated:goliath -->
 
@@ -303,45 +307,45 @@ fighter under about 50 credits.
 
 | Target | Hits to Down | Gear cost (credits) | ΔHits per 100 credits |
 |---|---|---|---|
-| Ganger (T3 W1 6+) | 2.34 | – | – |
-| Ganger + refraction cloak | 2.34 | 40 | 0.00 |
-| Ganger + respirator | 2.34 | 15 | 0.00 |
-| Ganger + hazard suit | 2.38 | 10 | 0.34 |
-| Ganger + mesh armour | 2.40 | 40 | 0.15 |
-| Ganger + servo-harness (partial) | 2.76 | 100 | 0.41 |
-| Ganger + servo-harness (full) | 2.76 | 130 | 0.32 |
-| Ganger + reflec shroud | 2.76 | 25 | 1.68 |
-| Ganger + light carapace | 2.78 | 100 | 0.44 |
-| Ganger + 'hystrar' pattern energy shield | 2.78 | 35 | 1.25 |
-| Ganger + bio-booster | 2.81 | 25 | 1.87 |
-| Ganger + refractor field | 3.04 | 50 | 1.39 |
-| Ganger + heavy carapace | 3.45 | 140 | 0.79 |
-| Champion (T3 W2 5+) | 3.95 | – | – |
-| Champion + refraction cloak | 3.95 | 40 | 0.00 |
-| Champion + respirator | 3.95 | 15 | 0.00 |
-| Champion + hazard suit | 4.02 | 10 | 0.70 |
-| Champion + mesh armour | 4.06 | 40 | 0.26 |
-| Champion + servo-harness (partial) | 4.42 | 100 | 0.47 |
-| Champion + servo-harness (full) | 4.42 | 130 | 0.36 |
-| Champion + bio-booster | 4.47 | 25 | 2.07 |
-| Champion + refractor field | 4.74 | 50 | 1.58 |
-| Champion + light carapace | 4.81 | 100 | 0.86 |
-| Champion + 'hystrar' pattern energy shield | 4.81 | 35 | 2.47 |
-| Champion + reflec shroud | 5.35 | 25 | 5.59 |
-| Champion + heavy carapace | 6.07 | 140 | 1.51 |
-| Brute (T4 W4 4+) | 9.16 | – | – |
-| Brute + refraction cloak | 9.16 | 40 | 0.00 |
-| Brute + respirator | 9.16 | 15 | 0.00 |
-| Brute + hazard suit | 9.26 | 10 | 0.98 |
-| Brute + mesh armour | 9.41 | 40 | 0.63 |
-| Brute + bio-booster | 9.83 | 25 | 2.69 |
-| Brute + refractor field | 10.39 | 50 | 2.47 |
-| Brute + servo-harness (partial) | 11.31 | 100 | 2.15 |
-| Brute + servo-harness (full) | 11.31 | 130 | 1.65 |
-| Brute + light carapace | 11.53 | 100 | 2.37 |
-| Brute + 'hystrar' pattern energy shield | 11.53 | 35 | 6.78 |
-| Brute + heavy carapace | 14.42 | 140 | 3.76 |
-| Brute + reflec shroud | 15.68 | 25 | 26.10 |
+| Ganger (T3 W1 6+) | 2.79 | – | – |
+| Ganger + refraction cloak | 2.79 | 40 | 0.00 |
+| Ganger + respirator | 2.79 | 15 | 0.00 |
+| Ganger + hazard suit | 2.81 | 10 | 0.14 |
+| Ganger + mesh armour | 2.96 | 40 | 0.41 |
+| Ganger + reflec shroud | 3.02 | 25 | 0.90 |
+| Ganger + light carapace | 3.38 | 100 | 0.59 |
+| Ganger + 'hystrar' pattern energy shield | 3.38 | 35 | 1.67 |
+| Ganger + bio-booster | 3.39 | 25 | 2.39 |
+| Ganger + refractor field | 3.49 | 50 | 1.38 |
+| Ganger + servo-harness (partial) | 3.54 | 100 | 0.75 |
+| Ganger + servo-harness (full) | 3.54 | 130 | 0.57 |
+| Ganger + heavy carapace | 4.34 | 140 | 1.10 |
+| Champion (T3 W2 5+) | 5.37 | – | – |
+| Champion + refraction cloak | 5.37 | 40 | 0.00 |
+| Champion + respirator | 5.37 | 15 | 0.00 |
+| Champion + hazard suit | 5.40 | 10 | 0.35 |
+| Champion + mesh armour | 5.77 | 40 | 1.01 |
+| Champion + bio-booster | 6.06 | 25 | 2.77 |
+| Champion + refractor field | 6.13 | 50 | 1.52 |
+| Champion + reflec shroud | 6.20 | 25 | 3.32 |
+| Champion + servo-harness (partial) | 6.61 | 100 | 1.24 |
+| Champion + servo-harness (full) | 6.61 | 130 | 0.95 |
+| Champion + light carapace | 6.83 | 100 | 1.46 |
+| Champion + 'hystrar' pattern energy shield | 6.83 | 35 | 4.18 |
+| Champion + heavy carapace | 8.53 | 140 | 2.26 |
+| Brute (T4 W4 4+) | 14.38 | – | – |
+| Brute + refraction cloak | 14.38 | 40 | 0.00 |
+| Brute + respirator | 14.38 | 15 | 0.00 |
+| Brute + hazard suit | 14.45 | 10 | 0.69 |
+| Brute + bio-booster | 15.40 | 25 | 4.10 |
+| Brute + mesh armour | 15.57 | 40 | 2.97 |
+| Brute + refractor field | 15.74 | 50 | 2.72 |
+| Brute + servo-harness (partial) | 16.57 | 100 | 2.19 |
+| Brute + servo-harness (full) | 16.57 | 130 | 1.68 |
+| Brute + light carapace | 18.02 | 100 | 3.64 |
+| Brute + 'hystrar' pattern energy shield | 18.02 | 35 | 10.39 |
+| Brute + reflec shroud | 19.39 | 25 | 20.05 |
+| Brute + heavy carapace | 21.29 | 140 | 4.94 |
 
 <!-- /generated:prototype -->
 
@@ -354,16 +358,16 @@ hits from the mix, and the break-even cost.
 
 | Item (credits) | Melta | Plasma | Bolt | Hand flamer | Las / stub | Melee | Enemy credits × | Break-even C* (credits) |
 |---|---|---|---|---|---|---|---|---|
-| Bio-booster (25) | +7% | +22% | +12% | +13% | +13% | +13% | 1.22 | 112 |
-| Reflec shroud (25) | +100% | +67% | 0% | 0% | 0% | 0% | 1.19 | 135 |
-| 'Hystrar' pattern energy shield (35) | 0% | +25% | +33% | +48% | +50% | +26% | 1.25 | 140 |
-| Heavy carapace (140) | +20% | +67% | +100% | +48% | +50% | +71% | 1.67 | 210 |
-| Refractor field (50) | +50% | +24% | 0% | 0% | 0% | +14% | 1.19 | 270 |
-| Light carapace (100) | 0% | +25% | +33% | +48% | +50% | +26% | 1.25 | 400 |
+| Reflec shroud (25) | +100% | +67% | 0% | 0% | 0% | 0% | 1.38 | 67 |
+| Bio-booster (25) | +7% | +22% | +12% | +13% | +13% | +13% | 1.23 | 110 |
+| 'Hystrar' pattern energy shield (35) | 0% | +25% | +33% | +48% | +50% | +26% | 1.32 | 110 |
+| Heavy carapace (140) | +20% | +67% | +100% | +48% | +50% | +71% | 1.89 | 157 |
+| Refractor field (50) | +50% | +24% | 0% | 0% | 0% | +14% | 1.20 | 251 |
+| Light carapace (100) | 0% | +25% | +33% | +48% | +50% | +26% | 1.32 | 314 |
+| Servo-harness (partial) (100) | 0% | 0% | +33% | +50% | +50% | +34% | 1.04 | 2721 |
+| Servo-harness (full) (130) | 0% | 0% | +33% | +50% | +50% | +34% | 1.04 | 3537 |
 | Mesh armour (40) | 0% | 0% | 0% | 0% | 0% | +26% | 1.00 | – |
 | Hazard suit (10) | 0% | 0% | 0% | +27% | 0% | 0% | 1.00 | – |
-| Servo-harness (partial) (100) | 0% | 0% | +33% | +50% | +50% | +34% | 1.00 | – |
-| Servo-harness (full) (130) | 0% | 0% | +33% | +50% | +50% | +34% | 1.00 | – |
 
 <!-- /generated:matchup -->
 
@@ -381,9 +385,9 @@ carapace catches up. The page defaults to +1.
 
 | Champion, ranged cover bonus | Refractor field (50): hits × / C* | 'Hystrar' pattern energy shield (35): hits × / C* | Light carapace (100): hits × / C* | Heavy carapace (140): hits × / C* |
 |---|---|---|---|---|
-| None (default) | 1.38 / 131 | 1.20 / 175 | 1.20 / 500 | 1.50 / 280 |
-| +1 | 1.19 / 270 | 1.25 / 140 | 1.25 / 400 | 1.67 / 210 |
-| +2 | 1.00 / – | 1.33 / 105 | 1.33 / 300 | 1.76 / 184 |
+| None (default) | 1.38 / 130 | 1.22 / 158 | 1.22 / 452 | 1.61 / 230 |
+| +1 | 1.20 / 251 | 1.32 / 110 | 1.32 / 314 | 1.89 / 157 |
+| +2 | 1.00 / – | 1.34 / 103 | 1.34 / 295 | 1.71 / 197 |
 
 <!-- /generated:cover -->
 
@@ -411,8 +415,9 @@ Tankiness.rate({
   equipmentList: 'vanSaar'       // the fighter entry's own list; defaults to the gang's
 })
 // => {
-//   enemyCredits: ECD, enemyCreditsPer100: ECD100,          // the headline: the enemy's cheapest tool
-//   bestTool: { id: 'plasma', name, attacker: { carrier, cost, hitsPerBattle, basis }, hits },
+//   enemyCredits: ECD, enemyCreditsPer100: ECD100,          // the headline: the enemy's cheapest plan
+//   plan: { steps: [{ id, name, share, credits }, ...], battles },
+//   bestTool: { id: 'plasma', name, attacker: { carrier, cost, hitsPerBattle, count, basis }, hits },
 //   hitsToDown: 5.20, pDownFirst: 0.149, hitsPer100: 1.35,   // hits from the enemy mix
 //   ti: 234.8, tp100: 61.0, gangerHits: 2.21,                   // the same, relative to a plain Ganger
 //   cost: { base: 95, weapons: 140, other: 0, defensive: 150, total: 385 },
