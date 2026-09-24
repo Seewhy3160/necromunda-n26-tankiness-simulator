@@ -1707,6 +1707,11 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
         const inp = el('input', { type: 'text', readonly: 'readonly', 'data-link': '1', id: 'f-link' });
         return el('div', { class: 'f wide' }, el('label', { for: 'f-link', text: 'Link to this set-up (the same parameters work for another program)' }), inp);
       })()));
+    root.appendChild(group('Scenario',
+      field('Opponent profile', 'o.opponent', OPPONENT, 'default', 'How much of the pool each weapon role carries.'),
+      field('Cover', 'o.cover', COVER, 'mix', 'p76: +1 to armour saves against shooting from within the weapon’s short range, +2 from long range; ' +
+        'invulnerable saves ignore it. The mix draws each hit from the three states, so no one state is assumed; the table below shows each.'),
+      field('Down means', 'o.endState', END, 'down')));
     root.appendChild(group('Profile',
       field('Toughness', 't.T', NUM, 3),
       field('Wounds', 't.W', NUM, 2),
@@ -1731,11 +1736,6 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       chipRow('Weapons carried', byGroup('weapon'))));
     root.appendChild(group('Skills', chipRow(null, Tankiness.SKILLS)));
     root.appendChild(group('Gene-smithing (Goliath, at recruitment)', chipRow(null, Tankiness.GENE_SMITHING)));
-    root.appendChild(group('Scenario',
-      field('Opponent profile', 'o.opponent', OPPONENT, 'default', 'How much of the pool each weapon role carries.'),
-      field('Cover', 'o.cover', COVER, 'mix', 'p76: +1 to armour saves against shooting from within the weapon’s short range, +2 from long range; ' +
-        'invulnerable saves ignore it. The mix draws each hit from the three states, so no one state is assumed; the table below shows each.'),
-      field('Down means', 'o.endState', END, 'down')));
     root.appendChild(tableBlock('What each item would do',
       ['Item', 'ΔEnemy credits', 'Δ per 100c', 'Break-even'].concat(ROLE_ORDER.map(r => ROLE_LABEL[r])),
       'gear',
