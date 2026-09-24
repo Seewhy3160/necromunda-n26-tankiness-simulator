@@ -139,7 +139,7 @@ t('the gear table lists every item with a marginal, best value first', async () 
 t('the per-weapon table is sorted cheapest-for-the-enemy first, with the attacker package and hits to Down', async () => {
   const rows = await page.$$eval('[data-rows="weapons"] tr', trs => trs.map(tr => ({ cls: tr.className, cells: [...tr.children].map(td => td.textContent) })));
   assert.equal(rows.length, 9);
-  // On a Tek in cover the bolter ganger is the cheapest answer: 95c, 1.88 hits a battle.
+  // On a Tek under the default cover mix the bolter ganger is the cheapest answer: 95c, 1.88 hits a battle.
   assert.match(rows[0].cells[0], /^Boltgun/);
   assert.match(rows[0].cells[1], /Ganger \(BS 4\+\) · 95c/);
   assert.equal(rows[0].cells[2], '1.88');
@@ -147,7 +147,8 @@ t('the per-weapon table is sorted cheapest-for-the-enemy first, with the attacke
   assert.match(rows[0].cls, /on/);
   assert.match(rows[0].cells[0], /of the plan/);
   for (let i = 1; i < rows.length; i++) assert.ok(parseFloat(rows[i - 1].cells[4]) <= parseFloat(rows[i].cells[4]));
-  // The lasgun row: 55c, 1.75 hits a battle; in +1 cover the Tek saves on 5+, so 4.5 hits to Down.
+  // The lasgun row: 55c, 1.75 hits a battle. Under the mix a third of hits each meet a 6+, 5+ and 4+
+  // save, which averages to the 5+ of short-range cover, so 4.5 hits to Down as in +1 cover.
   const las = rows.find(r => /^Lasgun/.test(r.cells[0]));
   assert.match(las.cells[1], /4 × Ganger \(BS 4\+\) · 55c/);
   assert.equal(las.cells[2], '1.75');
@@ -184,12 +185,33 @@ t('switching gang swaps the fighter list and seeds its first entry', async () =>
 t('cover and the opponent profile change the answer without breaking the Ganger baseline', async () => {
   await setSel('pick.gang', 'vanSaar');
   await setSel('pick.fighter', 'vsTek');
+  // The default is the mix, and the by-cover table shows all three states at a third each.
+  assert.equal(await page.inputValue('[data-bind="o.cover"]'), 'mix');
+  const coverRows = () => page.$$eval('[data-rows="cover"] tr', trs => trs.map(tr => ({ cls: tr.className, cells: [...tr.children].map(td => td.textContent) })));
+  let rows = await coverRows();
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map(r => r.cells[1]), ['33.3%', '33.3%', '33.3%']);
+  assert.ok(rows.every(r => /on/.test(r.cls)));
+  assert.match(rows[0].cells[0], /^None/);
+  assert.match(rows[2].cells[0], /^\+2/);
+  // Each row is the rating under one state; the Tek's credits rise with cover.
+  const ecdAt = rows.map(r => parseInt(r.cells[2], 10));
+  assert.ok(ecdAt[0] < ecdAt[1] && ecdAt[1] < ecdAt[2], ecdAt.join(' < '));
   await setSel('o.cover', 2);
   assert.match(await page.textContent('[data-minor]'), /vs a plain Ganger\s*×1\.00/);
+  // A fixed state makes that row the headline and marks only it.
+  rows = await coverRows();
+  assert.deepEqual(rows.map(r => r.cells[1]), ['0.0%', '0.0%', '100.0%']);
+  assert.deepEqual(rows.map(r => /on/.test(r.cls)), [false, false, true]);
+  assert.equal(rows[2].cells[2], await out('ecd'));
   await setSel('pick.fighter', 'vsPrime');
   const cover2 = await out('ecd');
   await setSel('o.cover', 0);
   assert.notEqual(await out('ecd'), cover2);
+  await setSel('o.cover', 'mix');
+  // A save roll is linear in its modifier between the 3+ cap and the 7+ floor, so on a
+  // 5+ save the equal mix reproduces short-range cover exactly: the +1 row is the headline.
+  assert.equal((await coverRows())[1].cells[2], await out('ecd'));
   const minor = () => page.textContent('[data-minor]');
   const dflt = (await minor()).match(/from the mix\s*(\d\.\d\d)/)[1];
   await setSel('o.opponent', 'meleeRush');

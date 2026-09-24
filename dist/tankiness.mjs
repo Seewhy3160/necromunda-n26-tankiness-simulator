@@ -1042,6 +1042,44 @@ const Tankiness = (function (Engine, Data) {
     return out;
   }
 
+  /* ---- Cover -------------------------------------------------------------------
+     Cover is +1 to armour saves against shooting when the shooter is within
+     the weapon's short range and +2 from long range (p76); open ground gives
+     nothing, and invulnerable saves ignore it. A fixed setting (0, 1, 2) puts
+     every hit in that state. The default is a mix: each hit is drawn from the
+     three states by weight, a third each, so the rating assumes neither that
+     the fighter is always in cover nor that it never is. It is one chain with
+     a mixed transition, not an average of three ratings. An
+     { open, short, long } object sets the weights. */
+  const COVER_KEYS = ['open', 'short', 'long'];
+  const COVER_MIX = { open: 1, short: 1, long: 1 };
+  const oneHot = (c) => [c === 0 ? 1 : 0, c === 1 ? 1 : 0, c === 2 ? 1 : 0];
+  function normaliseCover(c) {
+    let fixed = null;
+    if (c === undefined || c === null || c === '' || c === 'mix') c = COVER_MIX;
+    else if (typeof c !== 'object') {
+      fixed = clamp(parseInt(c, 10) || 0, 0, 2);
+      c = { open: fixed === 0 ? 1 : 0, short: fixed === 1 ? 1 : 0, long: fixed === 2 ? 1 : 0 };
+    }
+    const w = COVER_KEYS.map(k => Math.max(0, Number(c[k]) || 0));
+    const sum = w[0] + w[1] + w[2];
+    if (!(sum > 0)) throw new Error('the cover mix has no weight');
+    const mix = {};
+    COVER_KEYS.forEach((k, i) => { mix[k] = w[i] / sum; });
+    return { cover: fixed !== null ? fixed : (c === COVER_MIX ? 'mix' : mix), mix: mix, weights: w.map(x => x / sum) };
+  }
+
+  /* The cover states a hit may arrive under: each with its weight and the
+     options to resolve that hit with. */
+  function coverVariants(opts) {
+    const w = opts.coverWeights || normaliseCover(opts.cover).weights;
+    const out = [];
+    for (let c = 0; c < 3; c++) {
+      if (w[c] > 0) out.push({ w: w[c], opts: Object.assign({}, opts, { cover: c, coverWeights: oneHot(c) }) });
+    }
+    return out;
+  }
+
   /* ---- Expected hits to Down --------------------------------------------------
      Repeated hits form an absorbing chain over the target states. Because a
      hit can only leave the state as it is or move it forward, each state's
@@ -1058,6 +1096,7 @@ const Tankiness = (function (Engine, Data) {
     let total = 0;
     for (const m of mix) total += Math.max(0, m.weight);
     if (!(total > 0)) throw new Error('the weapon mix has no weight');
+    const covers = coverVariants(opts);
     const trans = new Map(), E = new Map();
     const T = (id) => {
       let m = trans.get(id);
@@ -1066,7 +1105,11 @@ const Tankiness = (function (Engine, Data) {
         for (const entry of mix) {
           if (!(entry.weight > 0)) continue;
           const w = entry.weight / total;
-          for (const [k, q] of resolveHit(id, entry.prof, t, opts, true)) addTo(m, k, w * q);
+          // A melee hit ignores cover, so one state stands for all three.
+          const states = entry.prof.melee ? [{ w: 1, opts: covers[0].opts }] : covers;
+          for (const cv of states) {
+            for (const [k, q] of resolveHit(id, entry.prof, t, cv.opts, true)) addTo(m, k, w * cv.w * q);
+          }
         }
         trans.set(id, m);
       }
@@ -1098,14 +1141,13 @@ const Tankiness = (function (Engine, Data) {
   function normaliseOptions(o) {
     o = o || {};
     const pool = o.pool || POOL_V1;
+    const cv = normaliseCover(o.cover);
     const opts = {
       pool: pool,
       endState: o.endState === 'ooa' ? 'ooa' : 'down',
       opponent: o.opponent || (pool.weights.referenceGang ? 'referenceGang' : Object.keys(pool.weights)[0]),
       mode: o.mode === 'campaign' ? 'campaign' : 'creation',
-      // Fighters use cover: +1 to armour saves within the weapon's short range
-      // is the default; 0 is open ground, 2 is long-range cover (p76).
-      cover: clamp(o.cover === undefined || o.cover === null ? 1 : (parseInt(o.cover, 10) || 0), 0, 2),
+      cover: cv.cover, coverMix: cv.mix, coverWeights: cv.weights,   // see Cover above
       gang: o.gang === undefined ? 'vanSaar' : o.gang,
       equipmentList: o.equipmentList
     };
@@ -1189,7 +1231,7 @@ const Tankiness = (function (Engine, Data) {
   const baselineCache = new Map();
   function baseline(opts) {
     if (opts.pool !== POOL_V1 || typeof opts.opponent !== 'string') return score(GANGER, [], opts);   // not cached
-    const key = [opts.pool.version, opts.endState, opts.cover, opts.opponent].join('|');
+    const key = [opts.pool.version, opts.endState, opts.coverWeights.join('/'), opts.opponent].join('|');
     let b = baselineCache.get(key);
     if (!b) { b = score(GANGER, [], opts); baselineCache.set(key, b); }
     return b;
@@ -1278,6 +1320,22 @@ const Tankiness = (function (Engine, Data) {
       planShare: main.plan ? (main.plan.steps.find(s => s.id === p.id) || { share: 0 }).share : 0
     }));
 
+    /* The whole rating with every hit under one cover state, for each of the
+       three, so a caller can see how much of the fighter's worth rests on
+       cover and which tool leads in each state. */
+    const byCover = [0, 1, 2].map(c => {
+      const w = opts.coverWeights[c];
+      const s = w === 1 ? main : score(profile, selected, Object.assign({}, opts, { cover: c, coverWeights: oneHot(c) }));
+      const ecd = s.plan ? s.plan.credits : null;
+      return {
+        cover: c, weight: w,
+        enemyCredits: ecd, enemyCreditsPer100: cost.total > 0 && ecd != null ? 100 * ecd / cost.total : null,
+        plan: s.plan ? { steps: s.plan.steps, battles: s.plan.battles } : null,
+        bestTool: s.best ? { id: s.best.id, name: s.best.name } : null,
+        hitsToDown: s.mix.hits, pDownFirst: s.mix.pDownFirst
+      };
+    });
+
     /* Marginal value of every rateable item, selected or not. For an item in
        an exclusive group (one suit of armour), "with" swaps it in. */
     const gear = ITEMS.map(it => {
@@ -1345,13 +1403,13 @@ const Tankiness = (function (Engine, Data) {
       bestTool: main.best ? { id: main.best.id, name: main.best.name, attacker: main.best.attacker, hits: main.best.hits } : null,
       hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
       ti: ti, tp100: tp100, gangerHits: base.mix.hits,
-      cost: cost, perProfile: perProfile,
+      cost: cost, perProfile: perProfile, byCover: byCover,
       evasion: { ranged: main.target.evasionRanged },
       target: main.target,
       gear: gear,
       problems: problems, notes: notes, unmodelled: unmodelled,
       poolVersion: opts.pool.version,
-      options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover,
+      options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover, coverMix: opts.coverMix,
                  gang: opts.gang, equipmentList: opts.equipmentList, geneSmithing: opts.geneSmithing }
     };
   }

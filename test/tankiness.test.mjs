@@ -20,7 +20,7 @@ const CHAMPION = { T: 3, W: 2, sv: 5 };
 /* ---- baseline and hand-worked chains ------------------------------------ */
 
 test('a plain Ganger scores exactly 100 under every scenario', () => {
-  for (const o of [{}, { cover: 1 }, { cover: 2 }, { endState: 'ooa' }, { opponent: 'meleeRush' }, { gang: 'goliath' }]) {
+  for (const o of [{}, { cover: 1 }, { cover: 2 }, { cover: 'mix' }, { endState: 'ooa' }, { opponent: 'meleeRush' }, { gang: 'goliath' }]) {
     near(rate(GANGER, {}, o).ti, 100, 1e-9);
   }
 });
@@ -282,6 +282,40 @@ test('cover improves armour saves against shooting only, and never an invulnerab
   // A Champion's armour catches up on the refractor as cover rises.
   const gain = (c) => { const g = rate(CHAMPION, {}, { cover: c }).gear; return g.find(x => x.id === 'refractor').ratio; };
   assert.ok(gain(0) > gain(1) && gain(1) > gain(2));
+});
+
+test('the cover mix draws each hit from the three states: one chain, not an average of three', () => {
+  // A Ganger goes Down on a laspistol hit with chance 1/3.6 on open ground,
+  // 1/4.5 in short-range cover and 1/6 in long-range cover, Injured or not,
+  // so under a mix each hit Downs with the weighted mean of the three.
+  const p = (c) => 1 / hits(GANGER, 'lasStub', [], { cover: c });
+  near(hits(GANGER, 'lasStub', [], { cover: 'mix' }), 1 / ((p(0) + p(1) + p(2)) / 3));
+  near(hits(GANGER, 'lasStub', [], { cover: { open: 0, short: 1, long: 1 } }), 1 / ((p(1) + p(2)) / 2));
+  near(hits(GANGER, 'lasStub', [], { cover: { open: 1, short: 0, long: 0 } }), hits(GANGER, 'lasStub'));
+  // Melee ignores cover, and AP -4 leaves a 6+ nothing to improve.
+  near(hits(GANGER, 'chainsword', [], { cover: 'mix' }), hits(GANGER, 'chainsword'));
+  near(hits(GANGER, 'meltagun', [], { cover: 'mix' }), hits(GANGER, 'meltagun'));
+  assert.throws(() => T.rate({ profile: GANGER }, { cover: { open: 0, short: 0, long: 0 } }), /cover mix/);
+  // The headline sits between the fixed states, and byCover reports each of them.
+  const r = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { cover: 'mix' });
+  const fixedAt = [0, 1, 2].map(c => T.rate({ profile: CHAMPION, cost: { base: 95 } }, { cover: c }));
+  assert.equal(r.byCover.length, 3);
+  for (const c of [0, 1, 2]) {
+    assert.equal(r.byCover[c].cover, c);
+    near(r.byCover[c].weight, 1 / 3);
+    near(r.byCover[c].hitsToDown, fixedAt[c].hitsToDown);
+    near(r.byCover[c].enemyCredits, fixedAt[c].enemyCredits);
+    near(r.byCover[c].enemyCreditsPer100, fixedAt[c].enemyCreditsPer100);
+    assert.equal(r.byCover[c].bestTool.id, fixedAt[c].bestTool.id);
+    assert.deepEqual(r.byCover[c].plan, fixedAt[c].plan);
+  }
+  assert.ok(r.hitsToDown > fixedAt[0].hitsToDown && r.hitsToDown < fixedAt[2].hitsToDown);
+  assert.ok(r.enemyCredits > fixedAt[0].enemyCredits && r.enemyCredits < fixedAt[2].enemyCredits);
+  // A fixed setting still reports the other two states, weighted zero.
+  const f = T.rate({ profile: CHAMPION, cost: { base: 95 } }, { cover: 1 });
+  assert.deepEqual(f.byCover.map(c => c.weight), [0, 1, 0]);
+  near(f.byCover[1].enemyCredits, f.enemyCredits);
+  near(f.byCover[0].enemyCredits, fixedAt[0].enemyCredits);
 });
 
 test('endState ooa counts only Out of Action; Seriously Injured fighters keep taking hits', () => {
@@ -616,13 +650,16 @@ test('the headline figures land where the rules say they should', () => {
 test('rate is pure: same input, same output, and unknown ids are reported not thrown', () => {
   const a = T.rate({ profile: CHAMPION, wargear: ['refractor', 'bogus'], cost: { base: 95 } });
   const b = T.rate({ profile: CHAMPION, wargear: ['refractor', 'bogus'], cost: { base: 95 } });
-  assert.equal(a.options.cover, 1);   // the default is short-range cover
+  assert.equal(a.options.cover, 'mix');   // the default draws each hit from the three cover states
   assert.deepEqual(a, b);
   assert.ok(a.problems.some(p => /bogus/.test(p)));
   assert.equal(a.poolVersion, 'v1');
-  assert.deepEqual(a.options, { endState: 'down', opponent: 'referenceGang', mode: 'creation', cover: 1, gang: 'vanSaar', equipmentList: 'vanSaar', geneSmithing: false });
+  assert.deepEqual(a.options, { endState: 'down', opponent: 'referenceGang', mode: 'creation', cover: 'mix', coverMix: { open: 1 / 3, short: 1 / 3, long: 1 / 3 },
+    gang: 'vanSaar', equipmentList: 'vanSaar', geneSmithing: false });
   assert.equal(T.rate({ profile: CHAMPION }, { cover: 0 }).options.cover, 0);
   assert.equal(T.rate({ profile: CHAMPION }, { cover: '2' }).options.cover, 2);
+  assert.deepEqual(T.rate({ profile: CHAMPION }, { cover: '2' }).options.coverMix, { open: 0, short: 0, long: 1 });
+  assert.deepEqual(T.rate({ profile: CHAMPION }, { cover: { open: 1, short: 3 } }).options.coverMix, { open: 0.25, short: 0.75, long: 0 });
 });
 
 test('a custom pool can be rated, and carries its own version tag', () => {

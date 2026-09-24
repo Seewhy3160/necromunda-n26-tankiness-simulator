@@ -34,6 +34,16 @@ function simulate(pick, t, opts, trials, seed) {
   const injuryDie = () => { const f = d6(); return f === 6 ? 3 : (f <= 2 ? 1 : 2); };
   const isDown = () => opts.endState === 'ooa' ? cond === 3 : cond >= 2;
   let w, cond, burnt, bioUsed;
+  /* Cover for each shooting hit: a fixed state, or one drawn from the mix
+     by weight ('mix' is a third each; an object gives its own weights). */
+  const coverW = typeof opts.cover === 'object' ? [opts.cover.open || 0, opts.cover.short || 0, opts.cover.long || 0]
+    : (opts.cover === 'mix' ? [1, 1, 1] : null);
+  const drawCover = () => {
+    if (!coverW) return opts.cover;
+    let r = rand() * (coverW[0] + coverW[1] + coverW[2]);
+    for (let c = 0; c < 3; c++) { r -= coverW[c]; if (r < 0) return c; }
+    return 2;
+  };
 
   function oneHit(allowBlaze, prof) {
     if (cond === 3) return;
@@ -54,7 +64,7 @@ function simulate(pick, t, opts, trials, seed) {
       if (t.reflec && !prof.melee && ['las', 'plasma', 'melta'].includes(prof.family)) ap = 0;
       const mods = ap + (rending ? -1 : 0) + (prof.melee
         ? t.meleeSave + (t.parry ? 1 : 0)
-        : t.rangedSave + (t.shield ? 1 : 0) + opts.cover);
+        : t.rangedSave + (t.shield ? 1 : 0) + drawCover());
       const armourNeed = (!breaching && !prof.gas && t.sv) ? Math.max(3, t.sv - mods) : 99;
       let inv = t.inv;
       if (prof.gas && t.respirator) inv = inv ? Math.min(inv, 5) : 5;
@@ -129,6 +139,8 @@ const CASES = [
   ['hand flamer vs a hazard suit', 'handFlamer', tgt({ T: 3, W: 2, sv: 5 }, ['hazardSuit']), {}],
   ['reflec shroud vs plasma', 'plasma', tgt({ T: 3, W: 2, sv: 5 }, ['reflecShroud']), {}],
   ['Hystrar shield in +2 cover vs hand flamer', 'handFlamer', tgt({ T: 3, W: 2, sv: 5 }, ['hystrarShield']), { cover: 2 }],
+  ['Champion vs boltgun, cover mix (a third each)', 'boltgun', tgt({ T: 3, W: 2, sv: 5 }), { cover: 'mix' }],
+  ['Prime with a Hystrar shield vs lasgun, mostly in cover', 'lasStub', tgt({ T: 3, W: 3, sv: 5 }, ['hystrarShield']), { cover: { open: 1, short: 2, long: 2 } }],
   ['power sword (Breaching) vs mesh armour and a refractor', 'powerSword', tgt({ T: 3, W: 2, sv: 5 }, ['meshArmour', 'refractor']), {}],
   ['Out of Action only: Prime vs plasma', 'plasma', tgt({ T: 3, W: 3, sv: 5 }), { endState: 'ooa' }],
   ['everything on: heavy carapace, refractor, bio-booster, dodge, scar tissue vs meltagun', 'meltagun',
@@ -153,7 +165,8 @@ const MIX_CASES = [
   ['Champion with a refractor field, default mix', { T: 3, W: 2, sv: 5 }, ['refractor'], 'default', {}],
   ['Prime with a Hystrar shield and Dodge, melee rush', { T: 3, W: 3, sv: 5 }, ['hystrarShield', 'dodge'], 'meleeRush', {}],
   ['Forge Despot with heavy carapace and a bio-booster, plasma/melta heavy, +1 cover', { T: 4, W: 3, sv: 5 }, ['heavyCarapace', 'bioBooster'], 'plasmaMelta', { cover: 1 }],
-  ['Brute, volume fire, Out of Action only', { T: 4, W: 4, sv: 4 }, [], 'volumeFire', { endState: 'ooa' }]
+  ['Brute, volume fire, Out of Action only', { T: 4, W: 4, sv: 4 }, [], 'volumeFire', { endState: 'ooa' }],
+  ['Prime, reference-gang mix, cover mix', { T: 3, W: 3, sv: 5 }, [], 'referenceGang', { cover: 'mix' }]
 ];
 for (const [name, profile, ids, opponent, o] of MIX_CASES) {
   test(`monte carlo, hits to Down from the weapon mix: ${name}`, () => {

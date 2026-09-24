@@ -91,6 +91,7 @@ td .src{display:block;font-size:11px;line-height:1.3;color:var(--ink-faint);marg
 td .src:empty{display:none}
 th{color:var(--ink-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+td.plan{white-space:normal;text-align:left;min-width:190px;font-size:12px;line-height:1.3}
 tr.on td:first-child::before{content:"\25CF  ";color:var(--accent)}
 tr.unavail td{color:var(--ink-faint)}
 .pos{color:var(--ok)} .neg{color:var(--ooa)} .zero{color:var(--ink-faint)}
@@ -1174,6 +1175,44 @@ const Tankiness = (function (Engine, Data) {
     return out;
   }
 
+  /* ---- Cover -------------------------------------------------------------------
+     Cover is +1 to armour saves against shooting when the shooter is within
+     the weapon's short range and +2 from long range (p76); open ground gives
+     nothing, and invulnerable saves ignore it. A fixed setting (0, 1, 2) puts
+     every hit in that state. The default is a mix: each hit is drawn from the
+     three states by weight, a third each, so the rating assumes neither that
+     the fighter is always in cover nor that it never is. It is one chain with
+     a mixed transition, not an average of three ratings. An
+     { open, short, long } object sets the weights. */
+  const COVER_KEYS = ['open', 'short', 'long'];
+  const COVER_MIX = { open: 1, short: 1, long: 1 };
+  const oneHot = (c) => [c === 0 ? 1 : 0, c === 1 ? 1 : 0, c === 2 ? 1 : 0];
+  function normaliseCover(c) {
+    let fixed = null;
+    if (c === undefined || c === null || c === '' || c === 'mix') c = COVER_MIX;
+    else if (typeof c !== 'object') {
+      fixed = clamp(parseInt(c, 10) || 0, 0, 2);
+      c = { open: fixed === 0 ? 1 : 0, short: fixed === 1 ? 1 : 0, long: fixed === 2 ? 1 : 0 };
+    }
+    const w = COVER_KEYS.map(k => Math.max(0, Number(c[k]) || 0));
+    const sum = w[0] + w[1] + w[2];
+    if (!(sum > 0)) throw new Error('the cover mix has no weight');
+    const mix = {};
+    COVER_KEYS.forEach((k, i) => { mix[k] = w[i] / sum; });
+    return { cover: fixed !== null ? fixed : (c === COVER_MIX ? 'mix' : mix), mix: mix, weights: w.map(x => x / sum) };
+  }
+
+  /* The cover states a hit may arrive under: each with its weight and the
+     options to resolve that hit with. */
+  function coverVariants(opts) {
+    const w = opts.coverWeights || normaliseCover(opts.cover).weights;
+    const out = [];
+    for (let c = 0; c < 3; c++) {
+      if (w[c] > 0) out.push({ w: w[c], opts: Object.assign({}, opts, { cover: c, coverWeights: oneHot(c) }) });
+    }
+    return out;
+  }
+
   /* ---- Expected hits to Down --------------------------------------------------
      Repeated hits form an absorbing chain over the target states. Because a
      hit can only leave the state as it is or move it forward, each state's
@@ -1190,6 +1229,7 @@ const Tankiness = (function (Engine, Data) {
     let total = 0;
     for (const m of mix) total += Math.max(0, m.weight);
     if (!(total > 0)) throw new Error('the weapon mix has no weight');
+    const covers = coverVariants(opts);
     const trans = new Map(), E = new Map();
     const T = (id) => {
       let m = trans.get(id);
@@ -1198,7 +1238,11 @@ const Tankiness = (function (Engine, Data) {
         for (const entry of mix) {
           if (!(entry.weight > 0)) continue;
           const w = entry.weight / total;
-          for (const [k, q] of resolveHit(id, entry.prof, t, opts, true)) addTo(m, k, w * q);
+          // A melee hit ignores cover, so one state stands for all three.
+          const states = entry.prof.melee ? [{ w: 1, opts: covers[0].opts }] : covers;
+          for (const cv of states) {
+            for (const [k, q] of resolveHit(id, entry.prof, t, cv.opts, true)) addTo(m, k, w * cv.w * q);
+          }
         }
         trans.set(id, m);
       }
@@ -1230,14 +1274,13 @@ const Tankiness = (function (Engine, Data) {
   function normaliseOptions(o) {
     o = o || {};
     const pool = o.pool || POOL_V1;
+    const cv = normaliseCover(o.cover);
     const opts = {
       pool: pool,
       endState: o.endState === 'ooa' ? 'ooa' : 'down',
       opponent: o.opponent || (pool.weights.referenceGang ? 'referenceGang' : Object.keys(pool.weights)[0]),
       mode: o.mode === 'campaign' ? 'campaign' : 'creation',
-      // Fighters use cover: +1 to armour saves within the weapon's short range
-      // is the default; 0 is open ground, 2 is long-range cover (p76).
-      cover: clamp(o.cover === undefined || o.cover === null ? 1 : (parseInt(o.cover, 10) || 0), 0, 2),
+      cover: cv.cover, coverMix: cv.mix, coverWeights: cv.weights,   // see Cover above
       gang: o.gang === undefined ? 'vanSaar' : o.gang,
       equipmentList: o.equipmentList
     };
@@ -1321,7 +1364,7 @@ const Tankiness = (function (Engine, Data) {
   const baselineCache = new Map();
   function baseline(opts) {
     if (opts.pool !== POOL_V1 || typeof opts.opponent !== 'string') return score(GANGER, [], opts);   // not cached
-    const key = [opts.pool.version, opts.endState, opts.cover, opts.opponent].join('|');
+    const key = [opts.pool.version, opts.endState, opts.coverWeights.join('/'), opts.opponent].join('|');
     let b = baselineCache.get(key);
     if (!b) { b = score(GANGER, [], opts); baselineCache.set(key, b); }
     return b;
@@ -1410,6 +1453,22 @@ const Tankiness = (function (Engine, Data) {
       planShare: main.plan ? (main.plan.steps.find(s => s.id === p.id) || { share: 0 }).share : 0
     }));
 
+    /* The whole rating with every hit under one cover state, for each of the
+       three, so a caller can see how much of the fighter's worth rests on
+       cover and which tool leads in each state. */
+    const byCover = [0, 1, 2].map(c => {
+      const w = opts.coverWeights[c];
+      const s = w === 1 ? main : score(profile, selected, Object.assign({}, opts, { cover: c, coverWeights: oneHot(c) }));
+      const ecd = s.plan ? s.plan.credits : null;
+      return {
+        cover: c, weight: w,
+        enemyCredits: ecd, enemyCreditsPer100: cost.total > 0 && ecd != null ? 100 * ecd / cost.total : null,
+        plan: s.plan ? { steps: s.plan.steps, battles: s.plan.battles } : null,
+        bestTool: s.best ? { id: s.best.id, name: s.best.name } : null,
+        hitsToDown: s.mix.hits, pDownFirst: s.mix.pDownFirst
+      };
+    });
+
     /* Marginal value of every rateable item, selected or not. For an item in
        an exclusive group (one suit of armour), "with" swaps it in. */
     const gear = ITEMS.map(it => {
@@ -1477,13 +1536,13 @@ const Tankiness = (function (Engine, Data) {
       bestTool: main.best ? { id: main.best.id, name: main.best.name, attacker: main.best.attacker, hits: main.best.hits } : null,
       hitsToDown: hits, pDownFirst: main.mix.pDownFirst, hitsPer100: hitsPer100,
       ti: ti, tp100: tp100, gangerHits: base.mix.hits,
-      cost: cost, perProfile: perProfile,
+      cost: cost, perProfile: perProfile, byCover: byCover,
       evasion: { ranged: main.target.evasionRanged },
       target: main.target,
       gear: gear,
       problems: problems, notes: notes, unmodelled: unmodelled,
       poolVersion: opts.pool.version,
-      options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover,
+      options: { endState: opts.endState, opponent: opts.opponent, mode: opts.mode, cover: opts.cover, coverMix: opts.coverMix,
                  gang: opts.gang, equipmentList: opts.equipmentList, geneSmithing: opts.geneSmithing }
     };
   }
@@ -1600,7 +1659,9 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
   const GANG_OPTS = Object.keys(Tankiness.GANGS).map(id => [id, Tankiness.GANGS[id].name]);
   const MODE = [['creation', 'Gang creation (Equipment List only)'], ['campaign', 'Campaign (list + Trading Post)']];
   const OPPONENT = Tankiness.OPPONENTS.map(o => [o.id, o.name]);
-  const COVER = [[1, '+1: in cover at short range (default)'], [0, 'none: open ground'], [2, '+2: in cover at long range']];
+  const COVER = [['mix', 'Mix: open, short-range cover, long-range cover, a third each (default)'],
+    [0, 'none: open ground'], [1, '+1: in cover at short range'], [2, '+2: in cover at long range']];
+  const COVER_LABEL = { 0: 'None: open ground', 1: '+1: in cover at short range', 2: '+2: in cover at long range' };
   const END = [['down', 'Seriously Injured or Out of Action'], ['ooa', 'Out of Action only']];
   const ROLE_LABEL = { leaderKiller: 'Melta', special: 'Plasma', bolt: 'Bolt', template: 'Flamer', throwaway: 'Las / stub', melee: 'Melee' };
   const ROLE_ORDER = ['leaderKiller', 'special', 'bolt', 'template', 'throwaway', 'melee'];
@@ -1668,7 +1729,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.appendChild(group('Gene-smithing (Goliath, at recruitment)', chipRow(null, Tankiness.GENE_SMITHING)));
     root.appendChild(group('Scenario',
       field('Opponent profile', 'o.opponent', OPPONENT, 'default', 'How much of the pool each weapon role carries.'),
-      field('Cover', 'o.cover', COVER, 1, 'Applies to armour saves against shooting (p76); invulnerable saves ignore it.'),
+      field('Cover', 'o.cover', COVER, 'mix', 'p76: +1 to armour saves against shooting from within the weapon’s short range, +2 from long range; ' +
+        'invulnerable saves ignore it. The mix draws each hit from the three states, so no one state is assumed; the table below shows each.'),
       field('Down means', 'o.endState', END, 'down')));
     root.appendChild(tableBlock('What each item would do',
       ['Item', 'ΔEnemy credits', 'Δ per 100c', 'Break-even'].concat(ROLE_ORDER.map(r => ROLE_LABEL[r])),
@@ -1683,6 +1745,13 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       'Sorted cheapest for the enemy first. Enemy credits to Down = package cost × hits to Down ÷ hits per battle, for ' +
       'that tool alone. ● marks the tools in the enemy’s cheapest plan: taken in this order, each limited to what its ' +
       'packages land in one battle, until the hits add up to a Down. Hits to Down is the target-side figure the loadout ranker consumes.'));
+    root.appendChild(tableBlock('By cover: the same rating in each state',
+      ['Cover', 'Share of hits', 'Enemy credits to Down', 'Per 100c', 'Enemy’s cheapest plan', 'Hits to Down (mix)', 'Down on first hit'],
+      'cover',
+      'Each row is the whole rating with every hit in that one state; the headline draws each hit from the states by the share shown ' +
+      '(the Cover setting above), and ● marks the states it draws from. Cover changes armour saves against shooting only (p76): melee hits, ' +
+      'invulnerable saves and a weapon whose AP already strips the save cost the same in every row, which is why a meltagun keeps its ' +
+      'price while the cheap guns climb.'));
     root.appendChild(assumptionsBlock());
   }
 
@@ -1707,8 +1776,8 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       'only what the target controls. A refraction cloak therefore shows up as an evasion factor, not in TI.' }));
     body.appendChild(el('p', { 'data-pool': '1' }));
     body.appendChild(el('p', { html:
-      '<b>Fixed scenario for every hit:</b> target Active, in cover as set above (+1 to armour saves at short range ' +
-      'by default; invulnerable saves ignore cover). Only one save is rolled per hit, the best available; a natural 1 or 2 always fails, ' +
+      '<b>Fixed scenario for every hit:</b> target Active, cover as set above (by default each hit is drawn from open ground, ' +
+      'cover at short range and cover at long range, a third each; invulnerable saves ignore cover). Only one save is rolled per hit, the best available; a natural 1 or 2 always fails, ' +
       'so Sv 2+ is no better than 3+ against AP –. The attacker rolls Lethality Injury dice and picks the ' +
       'worst for the target. A Serious Injury does nothing to a fighter already Seriously Injured.' }));
     body.appendChild(el('p', { html:
@@ -1760,6 +1829,9 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
   const credits = (x) => x == null ? '–' : Math.round(x) + 'c';
 
   function td(text, extra) { return el('td', { class: 'num ' + (extra || ''), text: text }); }
+  const shortName = (name) => name.split(' (')[0].split(' / ')[0];
+  const planText = (plan) => plan.steps.map(s => shortName(s.name) + ' ' + pct(s.share)).join(', ') +
+    (plan.battles > 1.0001 ? ' (over ' + plan.battles.toFixed(1) + ' battles)' : '');
 
   function show(root, res, ctx) {
     root.querySelector('[data-out="ecd"]').textContent = res.enemyCredits == null ? '–' : Math.round(res.enemyCredits);
@@ -1767,7 +1839,7 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
     root.querySelector('[data-out="total"]').textContent = res.cost.total;
 
     const bits = [];
-    if (res.plan) bits.push('Enemy’s cheapest plan ' + res.plan.steps.map(s => '<b>' + esc(s.name.split(' (')[0].split(' / ')[0]) + '</b> ' + pct(s.share)).join(', ') +
+    if (res.plan) bits.push('Enemy’s cheapest plan ' + res.plan.steps.map(s => '<b>' + esc(shortName(s.name)) + '</b> ' + pct(s.share)).join(', ') +
       (res.plan.battles > 1.0001 ? ' (over ' + res.plan.battles.toFixed(1) + ' battles)' : ''));
     bits.push(
       'Hits to Down from the mix <b>' + res.hitsToDown.toFixed(2) + '</b>',
@@ -1835,6 +1907,21 @@ if (typeof module !== 'undefined') module.exports = Tankiness;
       tr.appendChild(td(pct(p.pDownFirst)));
       tr.appendChild(td('×' + p.vsGanger.toFixed(2), cls(p.vsGanger - 1)));
       wBody.appendChild(tr);
+    }
+
+    // by cover: the whole rating under each state
+    const cBody = root.querySelector('[data-rows="cover"]');
+    cBody.innerHTML = '';
+    for (const c of res.byCover) {
+      const tr = el('tr', { class: c.weight > 0 ? 'on' : '' });
+      tr.appendChild(el('td', {}, el('span', { text: COVER_LABEL[c.cover] })));
+      tr.appendChild(td(pct(c.weight)));
+      tr.appendChild(td(c.enemyCredits == null ? '–' : String(Math.round(c.enemyCredits))));
+      tr.appendChild(td(c.enemyCreditsPer100 == null ? '–' : String(Math.round(c.enemyCreditsPer100))));
+      tr.appendChild(el('td', { class: 'plan' }, el('span', { text: c.plan ? planText(c.plan) : '–' })));
+      tr.appendChild(td(c.hitsToDown.toFixed(2)));
+      tr.appendChild(td(pct(c.pDownFirst)));
+      cBody.appendChild(tr);
     }
 
     // attacker packages in the assumptions block

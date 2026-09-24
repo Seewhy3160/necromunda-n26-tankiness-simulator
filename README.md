@@ -70,12 +70,16 @@ takes the fighter out of the fight. *Out of Action only* is an option.
 | Reduced Bone Density (−10, Goliath) | −1 T, and 10 credits back |
 | Vehicle (flag) | Hits resolve as for a fighter (Wounds, Injury dice, p77); Toxin wounds it only on a natural 6 (p165). Lasting Damage and vehicle-only rules are not rated |
 
-**Scenario options:** cover (p76: +1 to armour saves against shooting within
-the weapon's short range, which is the **default**, +2 within long range, or
-none for open ground; invulnerable saves ignore it), the end state, and a
+**Scenario options:** cover (p76: +1 to armour saves against shooting from
+within the weapon's short range, +2 from long range, none on open ground;
+invulnerable saves ignore it), which by **default is a mix**: each hit is
+drawn from the three states, a third each, so the rating assumes neither
+that the fighter is always in cover nor that it never is, and the page shows
+the whole rating under each state beside the headline; the end state; and a
 named opponent profile that re-weights the pool (the reference gang's own mix
-by default, an even role mix, plasma/melta heavy, melee rush, volume fire). Every figure in this README is at the
-default +1 cover unless it says otherwise.
+by default, an even role mix, plasma/melta heavy, melee rush, volume fire).
+Every figure in this README is at the default cover mix unless it says
+otherwise.
 
 **Deliberately left out:** stimm-slug stash, Unstoppable, Medicate,
 Juggernaut and Nerves of Steel act between hits rather than on one, so they do
@@ -213,15 +217,15 @@ hand-edit them.
 
 | Fighter | Cost | Enemy credits to Down | Per 100 credits | Enemy’s cheapest plan | Hits to Down (mix) |
 |---|---|---|---|---|---|
-| Van Saar Tek | 30 | 105 | 352 | Boltgun 93%, Lasgun 7% | 2.79 |
+| Van Saar Tek | 30 | 105 | 352 | Boltgun 93%, Lasgun 7% | 2.82 |
 | Van Saar Augmek | 95 | 208 | 219 | Plasma gun 91%, Boltgun 9% | 5.37 |
 | Van Saar Prime | 115 | 392 | 341 | Boltgun 27%, Plasma gun 48%, Lasgun 25% | 7.38 |
 | Forge Despot | 140 | 446 | 319 | Plasma gun 48%, Boltgun 20%, Stiletto knife 25%, Meltagun 7% | 9.02 |
-| Brute (T4 W4 4+) | 150 | 784 | 522 | Plasma gun 38%, Boltgun 11%, Stiletto knife 15%, Power sword 14%, Meltagun 22% | 14.38 |
-| Augmek + refractor field | 145 | 249 | 128 | Boltgun 39%, Plasma gun 61% | 6.13 |
-| Augmek + Hystrar shield | 130 | 274 | 166 | Plasma gun 72%, Boltgun 28% | 6.83 |
-| Augmek + heavy carapace | 235 | 394 | 105 | Plasma gun 54%, Power sword 31%, Lasgun 15% | 8.53 |
-| Prime + heavy carapace | 255 | 646 | 163 | Power sword 22%, Plasma gun 29%, Meltagun 37%, Lasgun 12% | 11.60 |
+| Brute (T4 W4 4+) | 150 | 790 | 526 | Plasma gun 38%, Boltgun 11%, Stiletto knife 15%, Power sword 14%, Lasgun 20%, Meltagun 2% | 14.18 |
+| Augmek + refractor field | 145 | 257 | 132 | Plasma gun 73%, Boltgun 27% | 6.18 |
+| Augmek + Hystrar shield | 130 | 274 | 166 | Plasma gun 72%, Boltgun 28% | 6.67 |
+| Augmek + heavy carapace | 235 | 383 | 102 | Plasma gun 54%, Boltgun 23%, Power sword 23% | 8.41 |
+| Prime + heavy carapace | 255 | 638 | 162 | Boltgun 16%, Power sword 22%, Plasma gun 29%, Meltagun 33% | 11.45 |
 
 <!-- /generated:enemyCredits -->
 
@@ -249,16 +253,16 @@ The attacker packages behind those figures:
 
 | Weapon | Cost | Share of hits | Ganger | Champion | Leader | Goliath champion | Brute |
 |---|---|---|---|---|---|---|---|
-| Meltagun | 140 | 3% | 1.25 | 1.25 | 1.25 | 1.25 | 2.45 |
-| Plasma gun / pistol | 85 / 70 | 10% | 1.69 | 2.02 | 3.82 | 2.02 | 4.78 |
+| Meltagun | 140 | 3% | 1.25 | 1.25 | 1.25 | 1.25 | 2.59 |
+| Plasma gun / pistol | 85 / 70 | 10% | 1.79 | 2.02 | 3.82 | 2.02 | 4.78 |
 | Boltgun / bolt pistol | 55 / 45 | 10% | 2.02 | 4.78 | 7.03 | 6.38 | 16.50 |
-| Hand flamer | 45 | 4% | 3.80 | 7.87 | 10.88 | 11.81 | 30.94 |
-| Lasgun / laspistol / autogun / stub gun | 15 / 5 | 37% | 4.50 | 10.00 | 14.00 | 15.00 | 40.50 |
+| Hand flamer | 45 | 4% | 3.82 | 7.90 | 10.90 | 11.84 | 26.62 |
+| Lasgun / laspistol / autogun / stub gun | 15 / 5 | 37% | 4.50 | 10.00 | 14.00 | 15.00 | 34.71 |
 | Stiletto knife (S3) | 25 | 9% | 2.70 | 5.63 | 7.88 | 5.63 | 13.50 |
 | Chainsword (S3) | 20 | 9% | 2.95 | 6.68 | 9.68 | 9.56 | 24.75 |
 | Power sword (S3) | 40 | 9% | 3.00 | 5.00 | 7.00 | 7.50 | 14.73 |
 | Cleaver (S3, Goliath) | 25 | 9% | 2.25 | 5.10 | 7.50 | 7.65 | 18.56 |
-| **Enemy mix (headline)** |  | 100% | **2.79** | **5.37** | **7.38** | **6.61** | **14.38** |
+| **Enemy mix (headline)** |  | 100% | **2.82** | **5.37** | **7.38** | **6.61** | **14.18** |
 
 <!-- /generated:hits -->
 
@@ -271,10 +275,10 @@ credits spent on the item in brackets. Base costs exclude weapons.
 
 | Fighter (credits) | No gear | + 'Hystrar' pattern energy shield (35) | + Refractor field (50) | + Mesh armour (40) | + Bio-booster (25) |
 |---|---|---|---|---|---|
-| Prime (115) | 7.38 | 9.32 (+5.54) | 8.44 (+2.13) | 7.91 (+1.33) | 8.04 (+2.67) |
-| Augmek (95) | 5.37 | 6.83 (+4.18) | 6.13 (+1.52) | 5.77 (+1.01) | 6.06 (+2.77) |
-| Archeotek (85) | 6.83 | 8.53 (+4.86) | 7.34 (+1.02) | 7.49 (+1.65) | 7.70 (+3.48) |
-| Tek (30) | 2.79 | 3.38 (+1.67) | 3.49 (+1.38) | 2.96 (+0.41) | 3.39 (+2.39) |
+| Prime (115) | 7.38 | 9.12 (+4.97) | 8.51 (+2.27) | 7.91 (+1.33) | 8.04 (+2.67) |
+| Augmek (95) | 5.37 | 6.67 (+3.71) | 6.18 (+1.63) | 5.77 (+1.01) | 6.06 (+2.77) |
+| Archeotek (85) | 6.67 | 8.41 (+4.97) | 7.23 (+1.13) | 7.30 (+1.58) | 7.52 (+3.41) |
+| Tek (30) | 2.82 | 3.38 (+1.60) | 3.57 (+1.50) | 2.99 (+0.42) | 3.42 (+2.41) |
 
 <!-- /generated:vanSaar -->
 
@@ -292,10 +296,10 @@ Heavy carapace reaches a Goliath fighter only through the Trading Post
 
 | Fighter (credits) | No gear | + Iron Flesh (30) | + Scar Tissue (15) | + Refractor field (50) | + Heavy carapace (140) | + Reduced Bone Density (-10) |
 |---|---|---|---|---|---|---|
-| Forge Breaker (70) | 3.54 | 5.52 (+6.61) | 4.08 (+3.62) | 4.48 (+1.88) | 5.41 (+1.34) | 2.79 |
-| Malformed (80) | 5.52 | 7.58 (+6.87) | 6.12 (+4.01) | 7.01 (+2.97) | 8.28 (+1.97) | 4.46 |
-| Forge Master / Twice Born (105) | 6.61 | 9.02 (+8.05) | 7.33 (+4.80) | 7.62 (+2.03) | 10.42 (+2.73) | 5.37 |
-| Forge Despot (140) | 9.02 | 11.56 (+8.46) | 9.70 (+4.54) | 10.45 (+2.85) | 14.07 (+3.60) | 7.38 |
+| Forge Breaker (70) | 3.58 | 5.61 (+6.75) | 4.12 (+3.62) | 4.57 (+1.99) | 5.30 (+1.23) | 2.82 |
+| Malformed (80) | 5.61 | 7.69 (+6.96) | 6.21 (+4.00) | 7.13 (+3.05) | 8.15 (+1.82) | 4.52 |
+| Forge Master / Twice Born (105) | 6.61 | 9.02 (+8.05) | 7.33 (+4.80) | 7.69 (+2.17) | 10.29 (+2.63) | 5.37 |
+| Forge Despot (140) | 9.02 | 11.56 (+8.46) | 9.70 (+4.54) | 10.53 (+3.01) | 13.90 (+3.48) | 7.38 |
 
 <!-- /generated:goliath -->
 
@@ -310,45 +314,45 @@ fighter under about 50 credits.
 
 | Target | Hits to Down | Gear cost (credits) | ΔHits per 100 credits |
 |---|---|---|---|
-| Ganger (T3 W1 6+) | 2.79 | – | – |
-| Ganger + refraction cloak | 2.79 | 40 | 0.00 |
-| Ganger + respirator | 2.79 | 15 | 0.00 |
-| Ganger + hazard suit | 2.81 | 10 | 0.14 |
-| Ganger + mesh armour | 2.96 | 40 | 0.41 |
-| Ganger + reflec shroud | 3.02 | 25 | 0.90 |
-| Ganger + light carapace | 3.38 | 100 | 0.59 |
-| Ganger + 'hystrar' pattern energy shield | 3.38 | 35 | 1.67 |
-| Ganger + bio-booster | 3.39 | 25 | 2.39 |
-| Ganger + refractor field | 3.49 | 50 | 1.38 |
-| Ganger + servo-harness (partial) | 3.54 | 100 | 0.75 |
-| Ganger + servo-harness (full) | 3.54 | 130 | 0.57 |
-| Ganger + heavy carapace | 4.34 | 140 | 1.10 |
+| Ganger (T3 W1 6+) | 2.82 | – | – |
+| Ganger + refraction cloak | 2.82 | 40 | 0.00 |
+| Ganger + respirator | 2.82 | 15 | 0.00 |
+| Ganger + hazard suit | 2.83 | 10 | 0.14 |
+| Ganger + mesh armour | 2.99 | 40 | 0.42 |
+| Ganger + reflec shroud | 3.02 | 25 | 0.80 |
+| Ganger + light carapace | 3.38 | 100 | 0.56 |
+| Ganger + 'hystrar' pattern energy shield | 3.38 | 35 | 1.60 |
+| Ganger + bio-booster | 3.42 | 25 | 2.41 |
+| Ganger + refractor field | 3.57 | 50 | 1.50 |
+| Ganger + servo-harness (partial) | 3.58 | 100 | 0.76 |
+| Ganger + servo-harness (full) | 3.58 | 130 | 0.58 |
+| Ganger + heavy carapace | 4.22 | 140 | 1.00 |
 | Champion (T3 W2 5+) | 5.37 | – | – |
 | Champion + refraction cloak | 5.37 | 40 | 0.00 |
 | Champion + respirator | 5.37 | 15 | 0.00 |
 | Champion + hazard suit | 5.40 | 10 | 0.35 |
 | Champion + mesh armour | 5.77 | 40 | 1.01 |
 | Champion + bio-booster | 6.06 | 25 | 2.77 |
-| Champion + refractor field | 6.13 | 50 | 1.52 |
+| Champion + refractor field | 6.18 | 50 | 1.63 |
 | Champion + reflec shroud | 6.20 | 25 | 3.32 |
 | Champion + servo-harness (partial) | 6.61 | 100 | 1.24 |
 | Champion + servo-harness (full) | 6.61 | 130 | 0.95 |
-| Champion + light carapace | 6.83 | 100 | 1.46 |
-| Champion + 'hystrar' pattern energy shield | 6.83 | 35 | 4.18 |
-| Champion + heavy carapace | 8.53 | 140 | 2.26 |
-| Brute (T4 W4 4+) | 14.38 | – | – |
-| Brute + refraction cloak | 14.38 | 40 | 0.00 |
-| Brute + respirator | 14.38 | 15 | 0.00 |
-| Brute + hazard suit | 14.45 | 10 | 0.69 |
-| Brute + bio-booster | 15.40 | 25 | 4.10 |
-| Brute + mesh armour | 15.57 | 40 | 2.97 |
-| Brute + refractor field | 15.74 | 50 | 2.72 |
-| Brute + servo-harness (partial) | 16.57 | 100 | 2.19 |
-| Brute + servo-harness (full) | 16.57 | 130 | 1.68 |
-| Brute + light carapace | 18.02 | 100 | 3.64 |
-| Brute + 'hystrar' pattern energy shield | 18.02 | 35 | 10.39 |
-| Brute + reflec shroud | 19.39 | 25 | 20.05 |
-| Brute + heavy carapace | 21.29 | 140 | 4.94 |
+| Champion + light carapace | 6.67 | 100 | 1.30 |
+| Champion + 'hystrar' pattern energy shield | 6.67 | 35 | 3.71 |
+| Champion + heavy carapace | 8.41 | 140 | 2.17 |
+| Brute (T4 W4 4+) | 14.18 | – | – |
+| Brute + refraction cloak | 14.18 | 40 | 0.00 |
+| Brute + respirator | 14.18 | 15 | 0.00 |
+| Brute + hazard suit | 14.26 | 10 | 0.77 |
+| Brute + bio-booster | 15.20 | 25 | 4.06 |
+| Brute + mesh armour | 15.34 | 40 | 2.89 |
+| Brute + refractor field | 15.66 | 50 | 2.95 |
+| Brute + servo-harness (partial) | 16.27 | 100 | 2.08 |
+| Brute + servo-harness (full) | 16.27 | 130 | 1.60 |
+| Brute + light carapace | 17.80 | 100 | 3.62 |
+| Brute + 'hystrar' pattern energy shield | 17.80 | 35 | 10.35 |
+| Brute + reflec shroud | 18.01 | 25 | 15.30 |
+| Brute + heavy carapace | 20.64 | 140 | 4.61 |
 
 <!-- /generated:prototype -->
 
@@ -363,10 +367,10 @@ hits from the mix, and the break-even cost.
 |---|---|---|---|---|---|---|---|---|
 | Reflec shroud (25) | +100% | +67% | 0% | 0% | 0% | 0% | 1.38 | 67 |
 | Bio-booster (25) | +7% | +22% | +12% | +13% | +13% | +13% | 1.23 | 110 |
-| 'Hystrar' pattern energy shield (35) | 0% | +25% | +33% | +48% | +50% | +26% | 1.32 | 110 |
-| Heavy carapace (140) | +20% | +67% | +100% | +48% | +50% | +71% | 1.89 | 157 |
-| Refractor field (50) | +50% | +24% | 0% | 0% | 0% | +14% | 1.20 | 251 |
-| Light carapace (100) | 0% | +25% | +33% | +48% | +50% | +26% | 1.32 | 314 |
+| 'Hystrar' pattern energy shield (35) | +6% | +25% | +33% | +27% | +29% | +26% | 1.32 | 110 |
+| Heavy carapace (140) | +20% | +67% | +71% | +47% | +50% | +71% | 1.84 | 167 |
+| Refractor field (50) | +50% | +24% | +9% | 0% | 0% | +14% | 1.23 | 213 |
+| Light carapace (100) | +6% | +25% | +33% | +27% | +29% | +26% | 1.32 | 314 |
 | Servo-harness (partial) (100) | 0% | 0% | +33% | +50% | +50% | +34% | 1.04 | 2721 |
 | Servo-harness (full) (130) | 0% | 0% | +33% | +50% | +50% | +34% | 1.04 | 3537 |
 | Mesh armour (40) | 0% | 0% | 0% | 0% | 0% | +26% | 1.00 | – |
@@ -382,13 +386,17 @@ works against the stiletto, because Toxin ignores Toughness.
 
 Cover never affects an invulnerable save, so open ground flatters the
 refractor field. The more of the game a fighter spends in cover, the more
-carapace catches up. The page defaults to +1.
+carapace catches up. The page defaults to the mix (each hit drawn from open
+ground, short-range cover and long-range cover, a third each, in one chain)
+and reports the three fixed states beside it, so a fighter whose worth rests
+on cover shows it; `cover: { open, short, long }` sets other weights.
 
 <!-- generated:cover -->
 
 | Champion, ranged cover bonus | Refractor field (50): hits × / C* | 'Hystrar' pattern energy shield (35): hits × / C* | Light carapace (100): hits × / C* | Heavy carapace (140): hits × / C* |
 |---|---|---|---|---|
-| None (default) | 1.38 / 130 | 1.22 / 158 | 1.22 / 452 | 1.61 / 230 |
+| Mix, a third each (default) | 1.23 / 213 | 1.32 / 110 | 1.32 / 314 | 1.84 / 167 |
+| None | 1.38 / 130 | 1.22 / 158 | 1.22 / 452 | 1.61 / 230 |
 | +1 | 1.20 / 251 | 1.32 / 110 | 1.32 / 314 | 1.89 / 157 |
 | +2 | 1.00 / – | 1.34 / 103 | 1.34 / 295 | 1.71 / 197 |
 
@@ -464,7 +472,7 @@ index.html?gang=goliath&fighter=goTyrant&wargear=refractor,meshArmour&skills=dod
 | `wargear`, `skills`, `gene` | comma-separated item ids from `Tankiness.WARGEAR`, `SKILLS`, `GENE_SMITHING` |
 | `mode` | `creation` or `campaign` |
 | `opponent` | `referenceGang`, `default`, `plasmaMelta`, `meleeRush`, `volumeFire` |
-| `cover` | `0`, `1`, `2` |
+| `cover` | `mix` (default), `0`, `1`, `2` |
 | `end` | `down` or `ooa` |
 
 The gang is applied first, then the fighter, then everything else, so a
@@ -508,7 +516,7 @@ Tankiness.rate({
   endState: 'down',              // or 'ooa'
   opponent: 'default',           // 'plasmaMelta' | 'meleeRush' | 'volumeFire', or a {role: weight} object
   mode: 'creation',              // or 'campaign' (adds the Trading Post)
-  cover: 0,                      // 0 | 1 | 2 on armour saves vs shooting
+  cover: 'mix',                  // 'mix' (a third each) | 0 | 1 | 2 | { open, short, long } weights
   gang: 'vanSaar',               // 'goliath' | 'furnaceBrutes' | 'unborn' | 'generic' | null
   equipmentList: 'vanSaar'       // the fighter entry's own list; defaults to the gang's
 })
@@ -521,6 +529,7 @@ Tankiness.rate({
 //   cost: { base: 95, weapons: 140, other: 0, defensive: 150, total: 385 },
 //   perProfile: [{ id: 'meltagun', name, role, cost, weight, attacker, hits, pDownFirst, vsGanger,
 //                   enemyCredits, cheapest }, ...],
+//   byCover: [{ cover: 0, weight, enemyCredits, enemyCreditsPer100, plan, bestTool, hitsToDown, pDownFirst }, ...],
 //   evasion: { ranged: 1 },
 //   gear: [{ id: 'refractor', name, cost, kind, selected, available, availability, availabilityNote,
 //            enemyCreditsWith, enemyCreditsWithout, dEnemyCredits, dEnemyCreditsPer100, bestToolWith,
@@ -528,7 +537,7 @@ Tankiness.rate({
 //            ratio, breakEven, breakEvenDirection,
 //            byRole: { leaderKiller, special, template, throwaway, melee } }, ...],
 //   problems: [], notes: [...], unmodelled: [],
-//   poolVersion: 'v1', options: { endState, opponent, mode, cover, gang, equipmentList }
+//   poolVersion: 'v1', options: { endState, opponent, mode, cover, coverMix, gang, equipmentList }
 // }
 ```
 

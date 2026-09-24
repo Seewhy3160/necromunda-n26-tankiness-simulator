@@ -70,7 +70,7 @@ A fighter entry from `Tankiness.GANGS[gang].fighters` can be passed as
 | `gang` | `'vanSaar'`, `'goliath'`, `'furnaceBrutes'`, `'unborn'`, `'delaque'`, `'escher'`, `'generic'`, or `null` for none | `'vanSaar'` |
 | `equipmentList` | id from `Tankiness.EQUIPMENT_LISTS` (`'vanSaar'`, `'goliath'`, `'furnaceBrutes'`, `'unborn'`, `'delaque'`, `'escher'`, `'none'`), or `null` for unknown | the gang's list |
 | `mode` | `'creation'` (Equipment List only) or `'campaign'` (list + Trading Post) | `'creation'` |
-| `cover` | `0`, `1`, `2`: bonus to armour saves against shooting (invulnerable saves ignore it) | `1` |
+| `cover` | `'mix'`: each hit drawn from open ground, short-range cover and long-range cover, a third each; `0`, `1`, `2`: every hit in that state (the bonus to armour saves against shooting, p76; invulnerable saves ignore it); or `{ open, short, long }` weights | `'mix'` |
 | `endState` | `'down'` (Seriously Injured or Out of Action) or `'ooa'` | `'down'` |
 | `opponent` | `'referenceGang'`, `'default'`, `'plasmaMelta'`, `'meleeRush'`, `'volumeFire'`, or a `{ role: weight }` object | `'referenceGang'` |
 | `geneSmithing` | `true`/`false` override; Beasts take none | the gang's setting |
@@ -111,6 +111,13 @@ Arachni-Rig use `'none'`).
     planShare: 0                // share of the plan carried by this weapon
   }, ...],
 
+  byCover: [{                   // the whole rating with every hit in one cover state, for 0, 1 and 2
+    cover: 0, weight: 0.333,    // weight: that state's share of hits under the cover option in use
+    enemyCredits: 310, enemyCreditsPer100: 270,
+    plan: { steps, battles }, bestTool: { id, name },
+    hitsToDown: 6.46, pDownFirst: 0
+  }, ...],
+
   gear: [{                      // one per rateable item, whether or not it is on the fighter
     id: 'refractor', name, kind: 'wargear'|'skill'|'gene', group, cost: 50, text,
     selected: false,
@@ -130,7 +137,7 @@ Arachni-Rig use `'none'`).
   notes: [],                    // things the caller should know (skills off when Injured, vehicle rule)
   unmodelled: [],               // selected items the engine does not rate (refraction cloak)
   poolVersion: 'v1',
-  options: { endState, opponent, mode, cover, gang, equipmentList, geneSmithing }
+  options: { endState, opponent, mode, cover, coverMix, gang, equipmentList, geneSmithing }   // coverMix: the { open, short, long } weights in use
 }
 ```
 
@@ -239,7 +246,7 @@ the current one and the address bar follows it over HTTP.
 | `wargear`, `skills`, `gene` | comma-separated item ids |
 | `mode` | `creation`, `campaign` |
 | `opponent` | opponent id |
-| `cover` | `0`, `1`, `2` |
+| `cover` | `mix`, `0`, `1`, `2` |
 | `end` | `down`, `ooa` |
 
 Order of application: gang, then fighter, then everything else.

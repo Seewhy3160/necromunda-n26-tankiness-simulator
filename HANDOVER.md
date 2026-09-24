@@ -59,7 +59,10 @@ rules fix belongs upstream, then re-copy the block and update `upstream.json`
 2. **Hits to Down** with one weapon is the expected number of such hits until
    Seriously Injured or Out of Action, solved as an absorbing chain (states
    only move forward, so one pass). Mixed hits (each drawn from the opponent
-   profile) use the same solve with a mixed transition.
+   profile) use the same solve with a mixed transition, and so does cover: by
+   default each hit arrives on open ground, in cover at short range or in
+   cover at long range, a third each, and `byCover` carries the rating at
+   each fixed state beside the headline.
 3. **Enemy credits to Down**: every pool weapon has an attacker package (a
    typical carrier plus the weapon, its cost, how many hits it lands per
    battle at its range with ammo uptime, and how many the reference gang
@@ -88,8 +91,15 @@ Hand-checks that anchor the maths: a Ganger takes 1.246 meltagun hits
    The "cheapest tool" version was too blunt (Iron Flesh on a Forge Despot
    scored zero because plasma removes W3 and W4 alike), hence the
    capacity-limited plan.
-2. **Cover +1 by default.** Fighters use cover; p76 gives +1 at short range.
-   Open ground and +2 remain options. All hand-worked tests pin cover 0.
+2. **Cover is a mix by default.** The first cut fixed +1 (short-range
+   cover) for every hit, which assumed the fighter is always in cover and
+   every shooter is close; a fixed 0 or +2 assumes the opposite. Now each hit
+   is drawn from open ground, short-range cover and long-range cover, a third
+   each, in the same chain (not an average of three ratings); the fixed
+   states stay selectable, and the page shows the whole rating under each
+   state so it is plain how much of a fighter's worth rests on cover. The
+   thirds are a judgement call, not a rule; `cover: { open, short, long }`
+   sets other weights. All hand-worked tests pin cover 0.
 3. **Reference gang as the default mix and the plan's capacities.** The
    per-role equal weighting from the design doc made 40% of hits plasma or
    melta. The package counts (one melta, one plasma, one bolter, one flamer,
@@ -117,6 +127,10 @@ results more than any rules detail.
   and bolters 3, lasguns 3.5, templates 1.5, one charge for melee).
 - Reference gang counts (above). A per-house reference gang would be more
   faithful now that Van Saar, Goliath, Delaque and Escher lists are in.
+- The cover mix: a third of hits each on open ground, in short-range cover
+  and in long-range cover. A per-weapon split by range band (a 6"/12" melta
+  rarely fires from long range, a lasgun mostly does) would be more faithful,
+  and the packages already carry the ranges.
 - The plan counts progress linearly across tools; per-weapon hits to Down
   are exact but the mixing is first order.
 - Core-type fighters (Ganger, Champion, Leader, Brute, Juve) carry the attack
@@ -158,6 +172,16 @@ The refraction cloak is reported as an evasion factor instead of in TI.
    `claude/fervent-euler-3i41he` because it was the first pushed. Renaming it
    to `main` is a one-line change in the workflow (it deploys the default
    branch) and nothing else.
+6. **Ammo uptime.** The packages multiply hits per battle by a flat uptime
+   (0.55 for Ammo (6+), 0.75 for Ammo (3+)) that came from the attack
+   simulator's analysis text, not from the rules. It is the figure that
+   decides the meltagun's rank: at 0.55 a melta champion costs 544 credits
+   to Down a Van Saar Prime, behind a bolter ganger at 356 in +1 cover; at
+   an uptime near 0.85 the two tie. Ammo only bites on the shots after a
+   failed check, so a weapon that Downs in one hit suffers less than a flat
+   factor says. The fix is to transcribe the N26 ammo-check trigger and
+   reload rule (which dice call for the check) and replace the flat factor
+   with the expected live shots at this target over a battle, per package.
 
 ## How to extend
 

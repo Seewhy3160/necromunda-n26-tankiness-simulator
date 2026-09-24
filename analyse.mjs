@@ -80,9 +80,9 @@ const sections = {};
 /* Cover. */
 {
   const ids = ['refractor', 'hystrarShield', 'lightCarapace', 'heavyCarapace'];
-  const rows = [0, 1, 2].map(cover => {
+  const rows = ['mix', 0, 1, 2].map(cover => {
     const r = rate({ T: 3, W: 2, sv: 5 }, {}, { gang: 'vanSaar', mode: 'campaign', cover });
-    return [cover === 0 ? 'None (default)' : `+${cover}`].concat(ids.map(id => {
+    return [cover === 'mix' ? 'Mix, a third each (default)' : (cover === 0 ? 'None' : `+${cover}`)].concat(ids.map(id => {
       const g = r.gear.find(x => x.id === id);
       return `${g.ratio.toFixed(2)} / ${g.breakEven == null ? '–' : Math.round(g.breakEven)}`;
     }));
