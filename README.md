@@ -396,6 +396,10 @@ carapace catches up. The page defaults to +1.
 
 ## API
 
+The full contract, with every id and result field, is in [API.md](API.md);
+[HANDOVER.md](HANDOVER.md) describes the project's state, decisions and open
+items for whoever works on it next.
+
 The module lives in the page's `<script id="tankiness">` block and exports
 `Tankiness.rate(fighter, options)`. It is pure and has no DOM access. Other
 programs (the attack simulator, the list builder) can reach it three ways;

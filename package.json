@@ -14,7 +14,9 @@
   "files": [
     "dist",
     "index.html",
-    "README.md"
+    "README.md",
+    "API.md",
+    "HANDOVER.md"
   ],
   "directories": {
     "test": "test"
