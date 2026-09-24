@@ -2,12 +2,27 @@
   "name": "necromunda-n26-tankiness-simulator",
   "version": "1.0.0",
   "description": "Offline single-file tankiness rating for Necromunda (N26) fighters: hits to Down against a fixed reference attack pool, raw and per credit",
+  "main": "dist/tankiness.js",
+  "module": "dist/tankiness.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/tankiness.mjs",
+      "require": "./dist/tankiness.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "index.html",
+    "README.md"
+  ],
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "node --test test/sync.test.mjs test/engine.test.mjs test/data.test.mjs test/tankiness.test.mjs test/tankiness-montecarlo.test.mjs test/montecarlo.test.mjs test/browser.test.mjs",
-    "test:fast": "node --test test/sync.test.mjs test/engine.test.mjs test/data.test.mjs test/tankiness.test.mjs",
+    "build": "node build.mjs",
+    "test": "node --test test/sync.test.mjs test/dist.test.mjs test/engine.test.mjs test/data.test.mjs test/tankiness.test.mjs test/tankiness-montecarlo.test.mjs test/montecarlo.test.mjs test/browser.test.mjs",
+    "test:fast": "node --test test/sync.test.mjs test/dist.test.mjs test/engine.test.mjs test/data.test.mjs test/tankiness.test.mjs",
     "analyse": "node analyse.mjs"
   },
   "repository": {

@@ -198,6 +198,51 @@ t('cover and the opponent profile change the answer without breaking the Ganger 
   assert.match(await page.textContent('[data-pool]'), /Enemy weapon mix, pool v1/);
 });
 
+t('URL parameters load a set-up, and the page offers a link back to it', async () => {
+  const p2 = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  const errs = [];
+  p2.on('pageerror', e => errs.push(String(e)));
+  await p2.goto(url + '?gang=goliath&fighter=goTyrant&wargear=refractor&skills=dodge&weapons=50&cover=0&W=4');
+  assert.equal(await p2.inputValue('[data-bind="pick.gang"]'), 'goliath');
+  assert.equal(await p2.inputValue('[data-bind="pick.fighter"]'), 'goTyrant');
+  assert.equal(await p2.inputValue('[data-bind="t.T"]'), '4');       // seeded by the fighter
+  assert.equal(await p2.inputValue('[data-bind="t.W"]'), '4');       // explicit parameter wins over the seed
+  assert.equal(await p2.isChecked('[data-bind="g.refractor"]'), true);
+  assert.equal(await p2.isChecked('[data-bind="g.dodge"]'), true);
+  assert.equal(await p2.inputValue('[data-bind="c.weapons"]'), '50');
+  assert.equal(await p2.inputValue('[data-bind="o.cover"]'), '0');
+  assert.equal(await p2.textContent('[data-out="total"]'), '240');
+  const link = await p2.inputValue('[data-link]');
+  for (const part of ['gang=goliath', 'fighter=goTyrant', 'wargear=refractor', 'skills=dodge', 'weapons=50', 'cover=0', 'W=4']) {
+    assert.ok(link.indexOf(part) >= 0, `${part} in ${link}`);
+  }
+  assert.equal(errs.length, 0, errs.join('\n'));
+  await p2.close();
+});
+
+t('the page answers postMessage requests to rate a fighter and to load a set-up', async () => {
+  const ask = (msg, replyType) => page.evaluate(([m, t]) => new Promise(resolve => {
+    window.addEventListener('message', function h(e) {
+      if (e.data && e.data.type === t && e.data.id === m.id) { window.removeEventListener('message', h); resolve(e.data); }
+    });
+    window.postMessage(m, '*');
+  }), [msg, replyType]);
+  const pong = await ask({ type: 'tankiness:ping', id: 1 }, 'tankiness:pong');
+  assert.equal(pong.poolVersion, 'v1');
+  const rated = await ask({ type: 'tankiness:rate', id: 2, fighter: { profile: { T: 3, W: 2, sv: 5 }, wargear: ['refractor'], cost: { base: 95 } }, options: { gang: 'vanSaar' } }, 'tankiness:result');
+  assert.ok(rated.result.enemyCredits > 0);
+  assert.equal(rated.result.cost.total, 145);
+  assert.equal(rated.result.poolVersion, 'v1');
+  const loaded = await ask({ type: 'tankiness:load', id: 3, params: { gang: 'escher', fighter: 'esQueen', wargear: ['meshArmour'] } }, 'tankiness:loaded');
+  assert.equal(await page.inputValue('[data-bind="pick.fighter"]'), 'esQueen');
+  assert.equal(await page.isChecked('[data-bind="g.meshArmour"]'), true);
+  assert.equal(loaded.result.cost.total, 175);
+  const bad = await ask({ type: 'tankiness:rate', id: 4, fighter: {}, options: { gang: 'nope' } }, 'tankiness:error');
+  assert.match(bad.error, /unknown gang/);
+  await check('g.meshArmour', false);
+  await setSel('pick.gang', 'vanSaar');
+});
+
 t('nothing on the page reaches the network or storage', async () => {
   const src = await page.content();
   assert.equal(/<script[^>]+src=/.test(src), false);

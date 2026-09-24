@@ -394,12 +394,103 @@ carapace catches up. The page defaults to +1.
 
 <!-- /generated:cover -->
 
-## Interface for the loadout ranker
+## API
 
 The module lives in the page's `<script id="tankiness">` block and exports
-`Tankiness.rate(fighter, options)`. It is pure and has no DOM access, so the
-ranker and the Node tests load it headless (see `test/load.mjs`, which
-evaluates the `engine`, `data` and `tankiness` blocks in order).
+`Tankiness.rate(fighter, options)`. It is pure and has no DOM access. Other
+programs (the attack simulator, the list builder) can reach it three ways;
+all three are generated from, or served by, the same `index.html`, and the
+test suite fails if any of them drifts from it.
+
+### 1. Library bundle
+
+`npm run build` writes two bundles from the page's `engine`, `data` and
+`tankiness` blocks, and the Pages site serves them:
+
+| File | For | Live URL |
+| --- | --- | --- |
+| `dist/tankiness.js` | `<script src>` (sets `window.Tankiness`, `Engine`, `Data`) and Node `require()` | `https://seewhy3160.github.io/necromunda-n26-tankiness-simulator/dist/tankiness.js` |
+| `dist/tankiness.mjs` | `import` in a browser or Node | `https://seewhy3160.github.io/necromunda-n26-tankiness-simulator/dist/tankiness.mjs` |
+
+```html
+<script src="https://seewhy3160.github.io/necromunda-n26-tankiness-simulator/dist/tankiness.js"></script>
+<script>
+  const r = Tankiness.rate({ profile: { T: 3, W: 2, sv: 5 }, wargear: ['refractor'], cost: { base: 95 } }, { gang: 'vanSaar' });
+  console.log(r.enemyCredits, r.hitsToDown, r.gear.find(g => g.id === 'hystrarShield').dEnemyCredits);
+</script>
+```
+
+```js
+import Tankiness, { Engine, Data } from 'https://seewhy3160.github.io/necromunda-n26-tankiness-simulator/dist/tankiness.mjs';
+```
+
+```sh
+npm install github:Seewhy3160/necromunda-n26-tankiness-simulator
+```
+
+```js
+const Tankiness = require('necromunda-n26-tankiness-simulator');      // CommonJS
+import Tankiness from 'necromunda-n26-tankiness-simulator';           // ES modules
+```
+
+`Tankiness.VERSION` is the package version and every result carries
+`poolVersion`; a caller should refuse to compare results across different
+values of either. `Engine` and `Data` are the attack simulator's own blocks,
+pinned to the commit in `upstream.json`, so the attack simulator can also use
+`Tankiness.hitsToDown(profile, target, options)` and `expectedHits` on the
+same engine it already runs.
+
+### 2. URL parameters
+
+The page loads a set-up from its query string, and the "Link to this set-up"
+field (and the address bar, when served over HTTP) always holds the current
+one. A list builder can open or embed the page with a fighter already filled
+in:
+
+```
+index.html?gang=goliath&fighter=goTyrant&wargear=refractor,meshArmour&skills=dodge&gene=ironFlesh&weapons=80&cover=1
+```
+
+| Parameter | Values |
+| --- | --- |
+| `gang` | `vanSaar`, `goliath`, `furnaceBrutes`, `unborn`, `delaque`, `escher`, `generic` |
+| `fighter` | a fighter id from `Tankiness.GANGS[gang].fighters` (seeds the profile, cost and any skill it comes with) |
+| `T`, `W`, `sv`, `inv`, `S`, `I`, `vehicle` | profile fields; explicit values win over the fighter's seed (`sv`/`inv`: 0 for none, else the target number; `vehicle`: 1) |
+| `base`, `weapons`, `other` | credits |
+| `wargear`, `skills`, `gene` | comma-separated item ids from `Tankiness.WARGEAR`, `SKILLS`, `GENE_SMITHING` |
+| `mode` | `creation` or `campaign` |
+| `opponent` | `referenceGang`, `default`, `plasmaMelta`, `meleeRush`, `volumeFire` |
+| `cover` | `0`, `1`, `2` |
+| `end` | `down` or `ooa` |
+
+The gang is applied first, then the fighter, then everything else, so a
+parameter never gets overwritten by the fighter's seed.
+
+### 3. Embedding with postMessage
+
+An embedding page (an `<iframe>` of `index.html`) can drive it by message.
+Every reply carries the request's `id` and `Tankiness.VERSION`.
+
+| Send | Reply |
+| --- | --- |
+| `{ type: 'tankiness:rate', id, fighter, options }` | `{ type: 'tankiness:result', id, result }`, the same object `Tankiness.rate` returns |
+| `{ type: 'tankiness:load', id, params }` | `{ type: 'tankiness:loaded', id, result }` after the page shows that set-up (`params` uses the URL parameter names; lists may be arrays) |
+| `{ type: 'tankiness:ping', id }` | `{ type: 'tankiness:pong', id, version, poolVersion }` |
+| anything that throws | `{ type: 'tankiness:error', id, error }` |
+
+```js
+const frame = document.querySelector('iframe').contentWindow;
+window.addEventListener('message', e => { if (e.data.type === 'tankiness:result') console.log(e.data.result.enemyCredits); });
+frame.postMessage({ type: 'tankiness:rate', id: 1, fighter: { profile: { T: 4, W: 2, sv: 5 }, cost: { base: 100 } }, options: { gang: 'goliath' } }, '*');
+```
+
+The page holds no secrets and stores nothing, so it answers any origin.
+
+### The `rate` contract
+
+The Node tests load the blocks headless through `test/load.mjs`, which
+evaluates `engine`, `data` and `tankiness` in order; the bundles do the same
+in one file.
 
 ```js
 Tankiness.rate({
@@ -471,14 +562,16 @@ pool profile against six targets.
 ```
 npm install         # only needed for the browser test
 npm test            # everything
-npm run test:fast   # sync, engine, data and tankiness, no dependencies
+npm run test:fast   # sync, dist, engine, data and tankiness, no dependencies
+npm run build       # regenerate dist/ after editing index.html
 ```
 
 * `test/sync.test.mjs` — the engine and data blocks match the pinned upstream commit.
+* `test/dist.test.mjs` — the library bundles in `dist/` match a fresh build of `index.html`, load with `import` and `require`, and rate exactly like the page.
 * `test/engine.test.mjs`, `test/data.test.mjs`, `test/montecarlo.test.mjs` — the upstream suites, unchanged.
 * `test/tankiness.test.mjs` — hand-worked chains (the 1.246 meltagun hits, the 3.6 laspistol hits, refractor burnout over four states, the bio-booster's two-dice pick, Scar Tissue, Adaptive Biology, Dodge, Iron Jaw, cover, Sv 2+), one-hit parity with the engine, the cost lines, the marginals, break-even, and availability under every gang and stage.
 * `test/tankiness-montecarlo.test.mjs` — an independent dice simulator, sharing no code with the module, rolls hit after hit until Down and checks each H<sub>w</sub>, and the headline figure with each hit drawn from the mix, to within 1%.
-* `test/browser.test.mjs` — loads the file over `file://` in Chromium and drives the real controls. Skips itself if Playwright is not installed.
+* `test/browser.test.mjs` — loads the file over `file://` in Chromium and drives the real controls, including the URL parameters and the postMessage API. Skips itself if Playwright is not installed.
 
 The tests read the `<script>` blocks straight out of `index.html`, so the
 single file stays the only source of truth.
